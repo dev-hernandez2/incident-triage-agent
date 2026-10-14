@@ -33,5 +33,8 @@ htmlcov/
 kubeconfig*.yaml
 *.kubeconfig
 
+# chaos CLI local state
+chaos/.state/
+
 # Logs
 *.log
