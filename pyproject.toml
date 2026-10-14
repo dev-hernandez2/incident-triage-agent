@@ -9,6 +9,9 @@ dependencies = []
 [tool.uv.workspace]
 members = ["services/*"]
 
+[tool.uv]
+package = false
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
