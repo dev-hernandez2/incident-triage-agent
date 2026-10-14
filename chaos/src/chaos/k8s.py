@@ -5,14 +5,17 @@ from kubernetes import client, config
 
 class K8sClient:
     def __init__(self, namespace: str = "boutique") -> None:
-        config.load_kube_config()
+        config.load_kube_config()  # type: ignore[no-untyped-call]
         self._apps = client.AppsV1Api()
         self._core = client.CoreV1Api()
         self.namespace = namespace
 
     def get_deployment(self, name: str) -> dict[str, Any]:
         deployment = self._apps.read_namespaced_deployment(name=name, namespace=self.namespace)
-        containers = deployment.spec.template.spec.containers
+        assert deployment.spec is not None
+        pod_spec = deployment.spec.template.spec
+        assert pod_spec is not None
+        containers = pod_spec.containers
         return {"containers": [self._container_to_dict(c) for c in containers]}
 
     def patch_containers(self, name: str, containers: list[dict[str, Any]]) -> None:
@@ -33,7 +36,9 @@ class K8sClient:
         pods = self._core.list_namespaced_pod(
             namespace=self.namespace, label_selector=pod_label_selector
         )
-        pod_name = pods.items[0].metadata.name
+        pod_metadata = pods.items[0].metadata
+        assert pod_metadata is not None
+        pod_name = pod_metadata.name
         result = stream(
             self._core.connect_get_namespaced_pod_exec,
             name=pod_name,

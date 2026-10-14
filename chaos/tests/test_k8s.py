@@ -1,9 +1,16 @@
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from chaos.k8s import K8sClient
 
 
-def _fake_v1_container(name, image, command, env, resources):
+def _fake_v1_container(
+    name: str,
+    image: str,
+    command: list[str] | None,
+    env: dict[str, str],
+    resources: dict[str, Any],
+) -> MagicMock:
     c = MagicMock()
     c.name = name
     c.image = image
@@ -17,13 +24,16 @@ def _fake_v1_container(name, image, command, env, resources):
     return c
 
 
-def test_get_deployment_converts_to_plain_dict():
+def test_get_deployment_converts_to_plain_dict() -> None:
     container = _fake_v1_container(
         name="paymentservice",
         image="repo/paymentservice:v0.10.7",
         command=None,
         env={"PORT": "50051"},
-        resources={"limits": {"cpu": "200m", "memory": "128Mi"}, "requests": {"cpu": "100m", "memory": "64Mi"}},
+        resources={
+            "limits": {"cpu": "200m", "memory": "128Mi"},
+            "requests": {"cpu": "100m", "memory": "64Mi"},
+        },
     )
     deployment = MagicMock()
     deployment.spec.template.spec.containers = [container]
@@ -50,4 +60,6 @@ def test_get_deployment_converts_to_plain_dict():
             }
         ]
     }
-    fake_api.read_namespaced_deployment.assert_called_once_with(name="paymentservice", namespace="boutique")
+    fake_api.read_namespaced_deployment.assert_called_once_with(
+        name="paymentservice", namespace="boutique"
+    )

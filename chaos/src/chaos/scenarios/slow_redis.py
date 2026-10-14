@@ -48,7 +48,16 @@ class SlowRedisScenario(Scenario):
         k8s.exec_in_pod(
             _LABEL_SELECTOR,
             "toxiproxy",
-            ["toxiproxy-cli", "toxic", "add", "redis", "-t", "latency", "-a", f"latency={latency_ms}"],
+            [
+                "toxiproxy-cli",
+                "toxic",
+                "add",
+                "redis",
+                "-t",
+                "latency",
+                "-a",
+                f"latency={latency_ms}",
+            ],
         )
 
         return {"containers": prior_containers}

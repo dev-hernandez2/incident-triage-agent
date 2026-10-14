@@ -1,5 +1,5 @@
 from chaos.scenarios.oom import OomScenario
-from tests.fake_k8s import FakeK8sClient
+from fake_k8s import FakeK8sClient
 
 
 def _seed_cartservice(fake: FakeK8sClient) -> None:
@@ -11,13 +11,16 @@ def _seed_cartservice(fake: FakeK8sClient) -> None:
                 "image": "repo/cartservice:v0.10.7",
                 "command": None,
                 "env": [],
-                "resources": {"limits": {"cpu": "300m", "memory": "128Mi"}, "requests": {"cpu": "200m", "memory": "64Mi"}},
+                "resources": {
+                    "limits": {"cpu": "300m", "memory": "128Mi"},
+                    "requests": {"cpu": "200m", "memory": "64Mi"},
+                },
             }
         ],
     )
 
 
-def test_inject_lowers_memory_limit_and_returns_prior_resources():
+def test_inject_lowers_memory_limit_and_returns_prior_resources() -> None:
     fake = FakeK8sClient()
     _seed_cartservice(fake)
     scenario = OomScenario()
@@ -25,14 +28,17 @@ def test_inject_lowers_memory_limit_and_returns_prior_resources():
     snapshot = scenario.inject(fake, "cartservice")
 
     assert snapshot == {
-        "resources": {"limits": {"cpu": "300m", "memory": "128Mi"}, "requests": {"cpu": "200m", "memory": "64Mi"}}
+        "resources": {
+            "limits": {"cpu": "300m", "memory": "128Mi"},
+            "requests": {"cpu": "200m", "memory": "64Mi"},
+        }
     }
     patched = fake.deployments["cartservice"]["containers"][0]["resources"]
     assert patched["limits"]["memory"] == "20Mi"
     assert patched["limits"]["cpu"] == "300m"
 
 
-def test_revert_restores_prior_resources():
+def test_revert_restores_prior_resources() -> None:
     fake = FakeK8sClient()
     _seed_cartservice(fake)
     scenario = OomScenario()
@@ -46,7 +52,7 @@ def test_revert_restores_prior_resources():
     }
 
 
-def test_ground_truth_uses_passed_service():
+def test_ground_truth_uses_passed_service() -> None:
     gt = OomScenario().ground_truth("cartservice")
     assert gt["affected_service"] == "cartservice"
     assert "OOMKilled" in gt["root_cause_label"]

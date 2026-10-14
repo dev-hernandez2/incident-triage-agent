@@ -1,5 +1,5 @@
 from chaos.scenarios.slow_redis import SlowRedisScenario
-from tests.fake_k8s import FakeK8sClient
+from fake_k8s import FakeK8sClient
 
 
 def _seed_redis_cart(fake: FakeK8sClient) -> None:
@@ -11,13 +11,16 @@ def _seed_redis_cart(fake: FakeK8sClient) -> None:
                 "image": "redis:alpine",
                 "command": None,
                 "env": [],
-                "resources": {"limits": {"cpu": "125m", "memory": "256Mi"}, "requests": {"cpu": "70m", "memory": "200Mi"}},
+                "resources": {
+                    "limits": {"cpu": "125m", "memory": "256Mi"},
+                    "requests": {"cpu": "70m", "memory": "200Mi"},
+                },
             }
         ],
     )
 
 
-def test_inject_adds_toxiproxy_sidecar_and_shifts_redis_port():
+def test_inject_adds_toxiproxy_sidecar_and_shifts_redis_port() -> None:
     fake = FakeK8sClient()
     _seed_redis_cart(fake)
     scenario = SlowRedisScenario()
@@ -31,7 +34,10 @@ def test_inject_adds_toxiproxy_sidecar_and_shifts_redis_port():
                 "image": "redis:alpine",
                 "command": None,
                 "env": [],
-                "resources": {"limits": {"cpu": "125m", "memory": "256Mi"}, "requests": {"cpu": "70m", "memory": "200Mi"}},
+                "resources": {
+                    "limits": {"cpu": "125m", "memory": "256Mi"},
+                    "requests": {"cpu": "70m", "memory": "200Mi"},
+                },
             }
         ]
     }
@@ -65,7 +71,7 @@ def test_inject_adds_toxiproxy_sidecar_and_shifts_redis_port():
     ]
 
 
-def test_revert_restores_single_container_and_original_command():
+def test_revert_restores_single_container_and_original_command() -> None:
     fake = FakeK8sClient()
     _seed_redis_cart(fake)
     scenario = SlowRedisScenario()
@@ -79,12 +85,15 @@ def test_revert_restores_single_container_and_original_command():
             "image": "redis:alpine",
             "command": None,
             "env": [],
-            "resources": {"limits": {"cpu": "125m", "memory": "256Mi"}, "requests": {"cpu": "70m", "memory": "200Mi"}},
+            "resources": {
+                "limits": {"cpu": "125m", "memory": "256Mi"},
+                "requests": {"cpu": "70m", "memory": "200Mi"},
+            },
         }
     ]
 
 
-def test_ground_truth_fixed_to_redis_cart():
+def test_ground_truth_fixed_to_redis_cart() -> None:
     gt = SlowRedisScenario().ground_truth("ignored")
     assert gt["affected_service"] == "redis-cart"
     assert "latency" in gt["root_cause_label"]

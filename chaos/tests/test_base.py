@@ -1,12 +1,12 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
-
 from chaos.scenarios.base import Scenario, ScenarioDefinition, load_definition
 
 
-def test_load_definition_reads_yaml(tmp_path, monkeypatch):
+def test_load_definition_reads_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     definitions_dir = tmp_path / "definitions"
     definitions_dir.mkdir()
     (definitions_dir / "dummy.yaml").write_text(
@@ -37,7 +37,9 @@ def test_load_definition_reads_yaml(tmp_path, monkeypatch):
     )
 
 
-def test_load_definition_missing_file_raises(tmp_path, monkeypatch):
+def test_load_definition_missing_file_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("chaos.scenarios.base._DEFINITIONS_DIR", tmp_path)
     with pytest.raises(FileNotFoundError):
         load_definition("does-not-exist")
@@ -47,14 +49,16 @@ class _DummyScenario(Scenario):
     name = "dummy"
     requires_service = True
 
-    def inject(self, k8s, service):
+    def inject(self, k8s: Any, service: str) -> dict[str, Any]:
         return {}
 
-    def revert(self, k8s, service, saved_state):
+    def revert(self, k8s: Any, service: str, saved_state: dict[str, Any]) -> None:
         pass
 
 
-def test_ground_truth_uses_passed_service_when_no_fixed_service(tmp_path, monkeypatch):
+def test_ground_truth_uses_passed_service_when_no_fixed_service(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     definitions_dir = tmp_path / "definitions"
     definitions_dir.mkdir()
     (definitions_dir / "dummy.yaml").write_text(
@@ -80,7 +84,9 @@ def test_ground_truth_uses_passed_service_when_no_fixed_service(tmp_path, monkey
     }
 
 
-def test_ground_truth_uses_fixed_service_when_set(tmp_path, monkeypatch):
+def test_ground_truth_uses_fixed_service_when_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     definitions_dir = tmp_path / "definitions"
     definitions_dir.mkdir()
     (definitions_dir / "dummy.yaml").write_text(
