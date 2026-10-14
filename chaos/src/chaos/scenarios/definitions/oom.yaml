@@ -1,0 +1,7 @@
+name: oom
+description: "Memory limit set below working set on the target service causes OOMKilled"
+root_cause_label: "memory limit set below working set (OOMKilled)"
+expected_fix: "restore the container's original memory requests/limits"
+fixed_service: null
+default_params:
+  memory_limit: "20Mi"
