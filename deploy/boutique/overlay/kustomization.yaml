@@ -1,0 +1,127 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: boutique
+
+resources:
+  - ../base
+  - namespace.yaml
+
+# Trim container resource requests/limits so the whole Online Boutique stack
+# plus monitoring fits comfortably under ~8GB RAM. Values are informed by
+# measured usage under real load (loadgenerator + Prometheus scraping)
+# rather than upstream defaults alone — JVM (adservice) and .NET
+# (cartservice) services need materially more memory headroom than Go/Python
+# ones to avoid OOMKills under GC pressure. No cpu limit is set (only cpu
+# requests, for scheduling/fair-share): actual usage is single-digit
+# millicores, and a cpu limit causes CFS quota throttling on short request
+# bursts that trips the CPU-throttling alert even when the app is healthy.
+patches:
+  - target:
+      kind: Deployment
+      name: adservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 100m, memory: 180Mi}
+          limits: {memory: 320Mi}
+  - target:
+      kind: Deployment
+      name: shippingservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 50m, memory: 64Mi}
+          limits: {memory: 128Mi}
+  - target:
+      kind: Deployment
+      name: checkoutservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 50m, memory: 64Mi}
+          limits: {memory: 128Mi}
+  - target:
+      kind: Deployment
+      name: currencyservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 50m, memory: 100Mi}
+          limits: {memory: 180Mi}
+  - target:
+      kind: Deployment
+      name: emailservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 50m, memory: 64Mi}
+          limits: {memory: 128Mi}
+  - target:
+      kind: Deployment
+      name: productcatalogservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 50m, memory: 64Mi}
+          limits: {memory: 128Mi}
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 50m, memory: 64Mi}
+          limits: {memory: 128Mi}
+  - target:
+      kind: Deployment
+      name: recommendationservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 50m, memory: 180Mi}
+          limits: {memory: 360Mi}
+  - target:
+      kind: Deployment
+      name: loadgenerator
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 100m, memory: 128Mi}
+          limits: {memory: 256Mi}
+  - target:
+      kind: Deployment
+      name: cartservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 100m, memory: 180Mi}
+          limits: {memory: 320Mi}
+  - target:
+      kind: Deployment
+      name: redis-cart
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 50m, memory: 120Mi}
+          limits: {memory: 200Mi}
+  - target:
+      kind: Deployment
+      name: paymentservice
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 50m, memory: 100Mi}
+          limits: {memory: 180Mi}

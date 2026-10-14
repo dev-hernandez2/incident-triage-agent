@@ -1,0 +1,65 @@
+# Loki single-binary, filesystem storage, no persistence — fine for an
+# ephemeral demo cluster torn down with `make down`.
+deploymentMode: SingleBinary
+
+loki:
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  auth_enabled: false
+
+singleBinary:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 200m, memory: 256Mi}
+  persistence:
+    enabled: false
+  # persistence.enabled: false drops the /var/loki volume entirely rather
+  # than falling back to emptyDir, which breaks under readOnlyRootFilesystem.
+  # Supply an explicit emptyDir at the same mount path used by the PVC.
+  extraVolumes:
+    - name: storage
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: storage
+      mountPath: /var/loki
+
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+gateway:
+  enabled: false
+
+ruler:
+  enabled: false
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+  selfMonitoring:
+    enabled: false
+  lokiCanary:
+    enabled: false
+
+test:
+  enabled: false
+
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
