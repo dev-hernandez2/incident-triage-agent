@@ -1,0 +1,9 @@
+# Promtail ships pod logs to Loki. Points at the in-cluster Loki gateway
+# service created by the loki chart release named "loki" in "monitoring".
+config:
+  clients:
+    - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+
+resources:
+  requests: {cpu: 25m, memory: 32Mi}
+  limits: {cpu: 100m, memory: 64Mi}

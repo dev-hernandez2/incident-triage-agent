@@ -1,0 +1,84 @@
+# PrometheusRule for Online Boutique, picked up by kube-prometheus-stack's
+# Prometheus via the "release: kube-prometheus-stack" label (ruleSelector
+# default). Online Boutique exposes no app-level HTTP/gRPC metrics (no
+# /metrics endpoint), so "high error rate" and "high p95 latency" are
+# approximated from container-level signals (restart rate, CPU throttling)
+# rather than real request metrics. Good enough to exercise the triage
+# agent's investigation flow; not a substitute for real APM.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: boutique-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: boutique.rules
+      rules:
+        - alert: BoutiquePodCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="boutique"}[15m]) > 3
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash looping"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace boutique) has restarted more than 3 times in the last 15 minutes."
+
+        - alert: BoutiquePodOOMKilled
+          expr: |
+            kube_pod_container_status_last_terminated_reason{namespace="boutique", reason="OOMKilled"} == 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} was OOMKilled"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace boutique) was last terminated with reason OOMKilled."
+
+        - alert: BoutiqueHighErrorRate
+          expr: |
+            sum(rate(kube_pod_container_status_restarts_total{namespace="boutique"}[5m])) by (pod)
+              > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High error rate (proxy) for pod {{ $labels.pod }}"
+            description: "Approximated via container restart rate, since Online Boutique exposes no app-level error metrics: pod {{ $labels.pod }} is restarting more than ~0.1/s averaged over 5m."
+
+        - alert: BoutiqueHighP95Latency
+          expr: |
+            sum(rate(container_cpu_cfs_throttled_seconds_total{namespace="boutique"}[5m])) by (pod)
+              / sum(rate(container_cpu_cfs_periods_total{namespace="boutique"}[5m])) by (pod)
+              > 0.5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High p95 latency (proxy) for pod {{ $labels.pod }}"
+            description: "Approximated via CPU throttling ratio, since Online Boutique exposes no latency histograms: pod {{ $labels.pod }} is CPU-throttled more than 50% of CFS periods over 5m, a likely cause of elevated request latency."
+
+        - alert: BoutiqueCPUThrottlingHigh
+          expr: |
+            sum(rate(container_cpu_cfs_throttled_periods_total{namespace="boutique"}[5m])) by (pod, container)
+              / sum(rate(container_cpu_cfs_periods_total{namespace="boutique"}[5m])) by (pod, container)
+              > 0.25
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "CPU throttling high for {{ $labels.container }} in {{ $labels.pod }}"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace boutique) has been CPU-throttled in more than 25% of CFS periods over 5m."
+
+        - alert: BoutiquePodNotReady
+          expr: |
+            sum by (namespace, pod) (
+              max by (namespace, pod) (kube_pod_status_phase{namespace="boutique", phase=~"Pending|Unknown|Failed"})
+            ) > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is not ready"
+            description: "Pod {{ $labels.pod }} (namespace boutique) has been in phase Pending/Unknown/Failed for more than 10 minutes."
