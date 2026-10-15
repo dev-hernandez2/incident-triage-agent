@@ -1,0 +1,7 @@
+name: bad_deploy
+description: "Broken image tag on the target service causes ImagePullBackOff"
+root_cause_label: "broken image tag in deployment"
+expected_fix: "roll back to the previous known-good image tag"
+fixed_service: null
+default_params:
+  bad_tag: "does-not-exist"

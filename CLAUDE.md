@@ -46,8 +46,13 @@ Portfolio project.
 ## Conventions
 
 - Dependency management: `uv` (single root `pyproject.toml` workspace across
-  `services/*`).
-- Lint/type-check: `ruff` + `mypy`.
+  `services/*` and `chaos`). The root project has no dependencies of its
+  own, so a bare `uv sync`/`uv run` only resolves that empty closure and
+  silently skips every workspace member. Always pass `--all-packages`
+  (`uv sync --all-packages`, `uv run --all-packages pytest`, etc.) except
+  where a command intentionally targets a single member package.
+- Lint/type-check: `ruff` + `mypy` (`strict = true`, enforced repo-wide
+  including test files).
 - Tests: `pytest`.
 - Commits: small, atomic, one logical change each.
 
@@ -58,7 +63,9 @@ services/webhook/   FastAPI receiver: Alertmanager webhook -> Kafka
 services/agent/      Tool-calling loop; read-only k8s/observability tools
 services/executor/   Only service permitted to mutate cluster state
 services/bot/        Discord bot: posts summaries, handles approve/deny
-chaos/               Fault injection scripts for Online Boutique
+chaos/               Typer CLI (`chaos`): injects/reverts fault scenarios
+                     against Online Boutique, with YAML ground truth per
+                     scenario. See chaos/README.md.
 eval/                Offline eval harness for agent accuracy
 deploy/k8s/          Raw k8s manifests (kind-friendly)
 deploy/helm/         Helm charts

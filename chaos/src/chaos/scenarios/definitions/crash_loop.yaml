@@ -1,0 +1,7 @@
+name: crash_loop
+description: "Bad PORT env var on paymentservice causes CrashLoopBackOff"
+root_cause_label: "bad configuration (invalid PORT env var)"
+expected_fix: "restore PORT to its original numeric value (50051)"
+fixed_service: paymentservice
+default_params:
+  bad_port_value: "not-a-port"

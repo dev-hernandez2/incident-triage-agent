@@ -1,0 +1,7 @@
+name: cpu_throttle
+description: "CPU limit set far below demand on the target service causes heavy throttling"
+root_cause_label: "CPU limit set far below demand (throttling)"
+expected_fix: "restore the container's original CPU requests/limits"
+fixed_service: null
+default_params:
+  cpu_limit: "10m"

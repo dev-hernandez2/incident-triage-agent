@@ -1,0 +1,9 @@
+name: slow_redis
+description: "Toxiproxy sidecar in front of redis-cart adds latency to every request"
+root_cause_label: "network latency injected in front of redis-cart"
+expected_fix: "remove the toxiproxy sidecar / latency toxic and restore redis-cart's original port"
+fixed_service: redis-cart
+default_params:
+  latency_ms: 2000
+  redis_internal_port: "6380"
+  toxiproxy_image: "ghcr.io/shopify/toxiproxy:2.9.0"
