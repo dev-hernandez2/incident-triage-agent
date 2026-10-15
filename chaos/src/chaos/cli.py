@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import typer
 
@@ -41,7 +41,10 @@ _SCENARIOS: dict[str, type[Scenario]] = {
 
 
 def _state_path() -> Path:
-    return Path("chaos/.state/active.json")
+    # Anchored to the chaos package's own location rather than the caller's
+    # cwd, so the single-active-injection invariant holds no matter which
+    # directory `chaos` is invoked from.
+    return Path(__file__).resolve().parents[2] / ".state" / "active.json"
 
 
 def _build_k8s_client() -> Any:
@@ -50,7 +53,7 @@ def _build_k8s_client() -> Any:
     return K8sClient(namespace=NAMESPACE)
 
 
-def _fail(message: str) -> None:
+def _fail(message: str) -> NoReturn:
     typer.echo(message)
     raise typer.Exit(code=1)
 
@@ -59,7 +62,6 @@ def _resolve_scenario(name: str) -> type[Scenario]:
     scenario_cls = _SCENARIOS.get(name)
     if scenario_cls is None:
         _fail(f"unknown scenario {name!r}. Valid scenarios: {', '.join(sorted(_SCENARIOS))}")
-        raise AssertionError("unreachable")  # for mypy; _fail always raises
     return scenario_cls
 
 
@@ -67,7 +69,9 @@ def _resolve_scenario(name: str) -> type[Scenario]:
 def list_scenarios() -> None:
     for name in sorted(_SCENARIOS):
         definition = load_definition(name)
-        typer.echo(f"{name}: {definition.description}")
+        scenario_cls = _SCENARIOS[name]
+        suffix = " (requires --service)" if scenario_cls.requires_service else ""
+        typer.echo(f"{name}: {definition.description}{suffix}")
 
 
 @app.command("inject")
@@ -80,14 +84,12 @@ def inject(
         active = store.load()
     except StateCorruptError as exc:
         _fail(f"state file is corrupt: {exc}")
-        return
 
     if active is not None:
         _fail(
             f"scenario {active.scenario!r} is already active on {active.service!r}. "
             "Run `chaos revert` first."
         )
-        return
 
     scenario_cls = _resolve_scenario(scenario)
     scenario_instance = scenario_cls()
@@ -97,10 +99,8 @@ def inject(
             _fail(
                 f"scenario {scenario!r} requires --service. Valid services: {', '.join(SERVICES)}"
             )
-            return
         if service not in SERVICES:
             _fail(f"unknown service {service!r}. Valid services: {', '.join(SERVICES)}")
-            return
         target_service = service
     else:
         definition = load_definition(scenario)
@@ -109,8 +109,20 @@ def inject(
                 f"scenario {scenario!r} has a fixed target "
                 f"({definition.fixed_service!r}); --service may not be overridden"
             )
-            return
         target_service = definition.fixed_service or ""
+
+    # Record a placeholder before touching the cluster: if inject() raises
+    # partway through, or the real save below fails, `chaos status` still
+    # shows an active injection (with no snapshot yet) rather than silently
+    # losing all record that the cluster may have been mutated.
+    pending = ActiveInjection(
+        scenario=scenario,
+        service=target_service,
+        namespace=NAMESPACE,
+        injected_at=datetime.now(UTC).isoformat(),
+        saved_state={},
+    )
+    store.save(pending)
 
     k8s = _build_k8s_client()
     saved_state = scenario_instance.inject(k8s, target_service)
@@ -120,7 +132,7 @@ def inject(
             scenario=scenario,
             service=target_service,
             namespace=NAMESPACE,
-            injected_at=datetime.now(UTC).isoformat(),
+            injected_at=pending.injected_at,
             saved_state=saved_state,
         )
     )
@@ -137,15 +149,12 @@ def revert(scenario: str = typer.Argument(None)) -> None:
         active = store.load()
     except StateCorruptError as exc:
         _fail(f"state file is corrupt: {exc}")
-        return
 
     if active is None:
         _fail("no active injection to revert")
-        return
 
     if scenario is not None and scenario != active.scenario:
         _fail(f"active injection is {active.scenario!r}, not {scenario!r}")
-        return
 
     scenario_cls = _resolve_scenario(active.scenario)
     scenario_instance = scenario_cls()
@@ -164,7 +173,6 @@ def status() -> None:
         active = store.load()
     except StateCorruptError as exc:
         _fail(f"state file is corrupt: {exc}")
-        return
 
     if active is None:
         typer.echo("no active injection")

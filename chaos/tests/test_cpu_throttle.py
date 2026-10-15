@@ -1,23 +1,10 @@
+from boutique_manifest import real_containers
 from chaos.scenarios.cpu_throttle import CpuThrottleScenario
 from fake_k8s import FakeK8sClient
 
 
 def _seed_recommendationservice(fake: FakeK8sClient) -> None:
-    fake.seed_deployment(
-        "recommendationservice",
-        [
-            {
-                "name": "recommendationservice",
-                "image": "repo/recommendationservice:v0.10.7",
-                "command": None,
-                "env": [],
-                "resources": {
-                    "limits": {"cpu": "200m", "memory": "450Mi"},
-                    "requests": {"cpu": "100m", "memory": "220Mi"},
-                },
-            }
-        ],
-    )
+    fake.seed_deployment("recommendationservice", real_containers("recommendationservice"))
 
 
 def test_inject_lowers_cpu_limit_and_returns_prior_resources() -> None:
@@ -33,9 +20,10 @@ def test_inject_lowers_cpu_limit_and_returns_prior_resources() -> None:
             "requests": {"cpu": "100m", "memory": "220Mi"},
         }
     }
-    patched = fake.deployments["recommendationservice"]["containers"][0]["resources"]
-    assert patched["limits"]["cpu"] == "10m"
-    assert patched["limits"]["memory"] == "450Mi"
+    patched = fake.deployments["recommendationservice"]["containers"][0]
+    assert patched["name"] == "server"
+    assert patched["resources"]["limits"]["cpu"] == "10m"
+    assert patched["resources"]["limits"]["memory"] == "450Mi"
 
 
 def test_revert_restores_prior_resources() -> None:
@@ -46,10 +34,8 @@ def test_revert_restores_prior_resources() -> None:
 
     scenario.revert(fake, "recommendationservice", snapshot)
 
-    assert fake.deployments["recommendationservice"]["containers"][0]["resources"] == {
-        "limits": {"cpu": "200m", "memory": "450Mi"},
-        "requests": {"cpu": "100m", "memory": "220Mi"},
-    }
+    reverted = fake.deployments["recommendationservice"]["containers"][0]
+    assert reverted == real_containers("recommendationservice")[0]
 
 
 def test_ground_truth_uses_passed_service() -> None:

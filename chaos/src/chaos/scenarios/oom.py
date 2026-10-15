@@ -13,14 +13,13 @@ class OomScenario(Scenario):
 
         deployment = k8s.get_deployment(service)
         containers = deployment["containers"]
-        container = next(c for c in containers if c["name"] == service)
+        container = containers[0]
         prior_resources = container["resources"]
 
-        new_resources = {
+        container["resources"] = {
             "limits": {**prior_resources["limits"], "memory": new_limit},
             "requests": dict(prior_resources["requests"]),
         }
-        container["resources"] = new_resources
         k8s.patch_containers(service, containers)
 
         return {"resources": prior_resources}
@@ -28,6 +27,5 @@ class OomScenario(Scenario):
     def revert(self, k8s: Any, service: str, saved_state: dict[str, Any]) -> None:
         deployment = k8s.get_deployment(service)
         containers = deployment["containers"]
-        container = next(c for c in containers if c["name"] == service)
-        container["resources"] = saved_state["resources"]
+        containers[0]["resources"] = saved_state["resources"]
         k8s.patch_containers(service, containers)

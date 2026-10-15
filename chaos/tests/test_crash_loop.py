@@ -1,26 +1,10 @@
+from boutique_manifest import real_containers
 from chaos.scenarios.crash_loop import CrashLoopScenario
 from fake_k8s import FakeK8sClient
 
 
 def _seed_paymentservice(fake: FakeK8sClient) -> None:
-    fake.seed_deployment(
-        "paymentservice",
-        [
-            {
-                "name": "paymentservice",
-                "image": "repo/paymentservice:v0.10.7",
-                "command": None,
-                "env": [
-                    {"name": "PORT", "value": "50051"},
-                    {"name": "DISABLE_PROFILER", "value": "1"},
-                ],
-                "resources": {
-                    "limits": {"cpu": "200m", "memory": "128Mi"},
-                    "requests": {"cpu": "100m", "memory": "64Mi"},
-                },
-            }
-        ],
-    )
+    fake.seed_deployment("paymentservice", real_containers("paymentservice"))
 
 
 def test_inject_overwrites_port_and_returns_prior_env() -> None:
@@ -33,9 +17,13 @@ def test_inject_overwrites_port_and_returns_prior_env() -> None:
     assert snapshot == {
         "env": [{"name": "PORT", "value": "50051"}, {"name": "DISABLE_PROFILER", "value": "1"}]
     }
-    patched_env = fake.deployments["paymentservice"]["containers"][0]["env"]
-    assert {"name": "PORT", "value": "not-a-port"} in patched_env
-    assert {"name": "DISABLE_PROFILER", "value": "1"} in patched_env
+    patched = fake.deployments["paymentservice"]["containers"][0]
+    assert patched["name"] == "server"
+    assert {"name": "PORT", "value": "not-a-port"} in patched["env"]
+    assert {"name": "DISABLE_PROFILER", "value": "1"} in patched["env"]
+    # fields outside the env/resources/image/command set must survive untouched
+    assert patched["readinessProbe"] == {"grpc": {"port": 50051}}
+    assert patched["securityContext"]["readOnlyRootFilesystem"] is True
 
 
 def test_revert_restores_prior_env() -> None:
@@ -46,10 +34,12 @@ def test_revert_restores_prior_env() -> None:
 
     scenario.revert(fake, "paymentservice", snapshot)
 
-    assert fake.deployments["paymentservice"]["containers"][0]["env"] == [
+    reverted = fake.deployments["paymentservice"]["containers"][0]
+    assert reverted["env"] == [
         {"name": "PORT", "value": "50051"},
         {"name": "DISABLE_PROFILER", "value": "1"},
     ]
+    assert reverted == real_containers("paymentservice")[0]
 
 
 def test_ground_truth_fixed_to_paymentservice() -> None:

@@ -1,34 +1,24 @@
+from boutique_manifest import real_containers
 from chaos.scenarios.bad_deploy import BadDeployScenario
 from fake_k8s import FakeK8sClient
 
 
 def _seed_frontend(fake: FakeK8sClient) -> None:
-    fake.seed_deployment(
-        "frontend",
-        [
-            {
-                "name": "frontend",
-                "image": "repo/frontend:v0.10.7",
-                "command": None,
-                "env": [],
-                "resources": {
-                    "limits": {"cpu": "300m", "memory": "128Mi"},
-                    "requests": {"cpu": "100m", "memory": "64Mi"},
-                },
-            }
-        ],
-    )
+    fake.seed_deployment("frontend", real_containers("frontend"))
 
 
 def test_inject_sets_bad_tag_and_returns_prior_image() -> None:
     fake = FakeK8sClient()
     _seed_frontend(fake)
     scenario = BadDeployScenario()
+    prior_image = real_containers("frontend")[0]["image"]
 
     snapshot = scenario.inject(fake, "frontend")
 
-    assert snapshot == {"image": "repo/frontend:v0.10.7"}
-    assert fake.deployments["frontend"]["containers"][0]["image"] == "repo/frontend:does-not-exist"
+    assert snapshot == {"image": prior_image}
+    patched = fake.deployments["frontend"]["containers"][0]
+    assert patched["name"] == "server"
+    assert patched["image"] == prior_image.rsplit(":", 1)[0] + ":does-not-exist"
 
 
 def test_revert_restores_prior_image() -> None:
@@ -39,7 +29,8 @@ def test_revert_restores_prior_image() -> None:
 
     scenario.revert(fake, "frontend", snapshot)
 
-    assert fake.deployments["frontend"]["containers"][0]["image"] == "repo/frontend:v0.10.7"
+    reverted = fake.deployments["frontend"]["containers"][0]
+    assert reverted == real_containers("frontend")[0]
 
 
 def test_ground_truth_uses_passed_service() -> None:

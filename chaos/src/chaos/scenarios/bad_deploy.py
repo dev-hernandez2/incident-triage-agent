@@ -13,7 +13,7 @@ class BadDeployScenario(Scenario):
 
         deployment = k8s.get_deployment(service)
         containers = deployment["containers"]
-        container = next(c for c in containers if c["name"] == service)
+        container = containers[0]
         prior_image = container["image"]
 
         repo = prior_image.rsplit(":", 1)[0]
@@ -25,6 +25,5 @@ class BadDeployScenario(Scenario):
     def revert(self, k8s: Any, service: str, saved_state: dict[str, Any]) -> None:
         deployment = k8s.get_deployment(service)
         containers = deployment["containers"]
-        container = next(c for c in containers if c["name"] == service)
-        container["image"] = saved_state["image"]
+        containers[0]["image"] = saved_state["image"]
         k8s.patch_containers(service, containers)

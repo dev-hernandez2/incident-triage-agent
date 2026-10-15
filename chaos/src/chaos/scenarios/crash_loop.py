@@ -3,7 +3,6 @@ from typing import Any, ClassVar
 from chaos.scenarios.base import Scenario, load_definition
 
 _TARGET_DEPLOYMENT = "paymentservice"
-_CONTAINER_NAME = "paymentservice"
 
 
 class CrashLoopScenario(Scenario):
@@ -16,14 +15,13 @@ class CrashLoopScenario(Scenario):
 
         deployment = k8s.get_deployment(_TARGET_DEPLOYMENT)
         containers = deployment["containers"]
-        container = next(c for c in containers if c["name"] == _CONTAINER_NAME)
-        prior_env = container["env"]
+        container = containers[0]
+        prior_env = container.get("env", [])
 
-        new_env = [
+        container["env"] = [
             {"name": "PORT", "value": bad_value} if e["name"] == "PORT" else e
             for e in prior_env
         ]
-        container["env"] = new_env
         k8s.patch_containers(_TARGET_DEPLOYMENT, containers)
 
         return {"env": prior_env}
@@ -31,6 +29,5 @@ class CrashLoopScenario(Scenario):
     def revert(self, k8s: Any, service: str, saved_state: dict[str, Any]) -> None:
         deployment = k8s.get_deployment(_TARGET_DEPLOYMENT)
         containers = deployment["containers"]
-        container = next(c for c in containers if c["name"] == _CONTAINER_NAME)
-        container["env"] = saved_state["env"]
+        containers[0]["env"] = saved_state["env"]
         k8s.patch_containers(_TARGET_DEPLOYMENT, containers)
