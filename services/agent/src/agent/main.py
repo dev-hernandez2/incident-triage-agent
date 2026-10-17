@@ -52,6 +52,7 @@ def consume_forever(consumer: "Consumer", session_factory: Callable[[], Session]
             continue
         raw = msg.value()
         if raw is None:
+            logger.warning("skipping message with no payload")
             continue
         session = session_factory()
         try:
