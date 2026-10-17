@@ -36,12 +36,37 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 		-f deploy/monitoring/promtail-values.yaml \
 		--wait --timeout 5m
 	kubectl apply -f deploy/monitoring/boutique-alerts.yaml
+	helm repo add bitnami https://charts.bitnami.com/bitnami >/dev/null 2>&1 || true
+	helm repo update bitnami
+	kubectl create namespace triage --dry-run=client -o yaml | kubectl apply -f -
+	helm upgrade --install kafka bitnami/kafka \
+		--namespace triage \
+		-f deploy/helm/kafka-values.yaml \
+		--wait --timeout 5m
+	helm upgrade --install postgres bitnami/postgresql \
+		--namespace triage \
+		-f deploy/helm/postgres-values.yaml \
+		--wait --timeout 5m
+	kubectl port-forward -n triage svc/postgres-postgresql 5432:5432 >/tmp/triage-pg-forward.log 2>&1 & \
+		PG_PID=$$!; \
+		for i in $$(seq 1 30); do \
+			nc -z localhost 5432 && break; \
+			sleep 1; \
+		done; \
+		DATABASE_URL=postgresql://triage:triage@localhost:5432/triage \
+			uv run --package triage-db alembic -c db/alembic.ini upgrade head; \
+		RC=$$?; \
+		kill $$PG_PID; \
+		exit $$RC
 	@echo ""
 	@echo "Online Boutique and monitoring stack are up."
 	@echo "Grafana:    http://localhost:3000  (run: kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80)"
 	@echo "Prometheus: http://localhost:9090  (run: kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090)"
 	@echo "Boutique:   http://localhost:8080  (run: kubectl port-forward -n boutique svc/frontend-external 8080:80)"
 	@echo "Grafana login: admin / admin"
+	@echo "Kafka:      kubectl port-forward -n triage svc/kafka 9092:9092"
+	@echo "Postgres:   kubectl port-forward -n triage svc/postgres-postgresql 5432:5432"
+	@echo "Run webhook/agent locally against those forwarded ports (see .env.example)."
 
 down: ## Tear down the kind cluster
 	kind delete cluster --name $(CLUSTER_NAME)
