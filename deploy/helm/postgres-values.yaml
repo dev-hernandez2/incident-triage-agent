@@ -1,0 +1,15 @@
+# Bitnami PostgreSQL, single instance + PVC. Credentials match .env.example's
+# default DATABASE_URL (triage/triage/triage) for local dev convenience.
+auth:
+  username: triage
+  password: triage
+  database: triage
+
+primary:
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+  persistence:
+    size: 2Gi
+
+architecture: standalone

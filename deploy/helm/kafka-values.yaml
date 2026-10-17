@@ -1,0 +1,19 @@
+# Bitnami Kafka, KRaft mode, single broker — no Zookeeper, no replication
+# beyond what one broker provides. Sized for a local kind cluster demo.
+controller:
+  replicaCount: 1
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+  persistence:
+    size: 2Gi
+
+broker:
+  replicaCount: 0
+
+listeners:
+  client:
+    protocol: PLAINTEXT
+
+kraft:
+  enabled: true
