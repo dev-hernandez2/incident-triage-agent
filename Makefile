@@ -49,10 +49,15 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 		--wait --timeout 5m
 	kubectl port-forward -n triage svc/postgres-postgresql 5432:5432 >/tmp/triage-pg-forward.log 2>&1 & \
 		PG_PID=$$!; \
-		sleep 3; \
+		for i in $$(seq 1 30); do \
+			nc -z localhost 5432 && break; \
+			sleep 1; \
+		done; \
 		DATABASE_URL=postgresql://triage:triage@localhost:5432/triage \
 			uv run --package triage-db alembic -c db/alembic.ini upgrade head; \
-		kill $$PG_PID
+		RC=$$?; \
+		kill $$PG_PID; \
+		exit $$RC
 	@echo ""
 	@echo "Online Boutique and monitoring stack are up."
 	@echo "Grafana:    http://localhost:3000  (run: kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80)"
