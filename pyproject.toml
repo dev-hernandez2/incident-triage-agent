@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = []
 
 [tool.uv.workspace]
-members = ["services/*", "chaos"]
+members = ["services/*", "chaos", "db"]
 
 [tool.uv]
 package = false
