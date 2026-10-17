@@ -1763,6 +1763,18 @@ dev = [
 name = "triage-agent-svc"
 version = "0.1.0"
 source = { editable = "services/agent" }
+dependencies = [
+    { name = "confluent-kafka" },
+    { name = "pydantic" },
+    { name = "triage-db" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "confluent-kafka", specifier = ">=2.5" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "triage-db", editable = "db" },
+]
 
 [[package]]
 name = "triage-bot"
