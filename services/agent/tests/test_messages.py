@@ -3,9 +3,8 @@
 import json
 
 import pytest
-from pydantic import ValidationError
-
 from agent.messages import parse_alert_message
+from pydantic import ValidationError
 
 VALID_RAW = json.dumps(
     {
