@@ -30,9 +30,12 @@ still just evidence of a misconfigured env var).
 
 ## Citing evidence
 
-Every item in `submit_findings`'s `evidence` list must include the
-`tool_call_id` of a tool call you actually made during this
-investigation. Don't invent or guess an id.
+Every tool result you receive starts with a line like
+`[tool_call_id: <uuid>]` — that uuid, not the tool call's own name or
+index, is what you must put in `submit_findings`'s `evidence[].tool_call_id`
+for any evidence drawn from that tool call. Don't invent or guess an id;
+only use ids you've actually seen in a `[tool_call_id: ...]` line this
+investigation.
 
 ## Confidence
 

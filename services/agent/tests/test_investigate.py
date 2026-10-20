@@ -82,15 +82,14 @@ def test_investigate_cites_a_real_tool_call_id_in_evidence() -> None:
             from llm.types import ToolResultMessage
 
             tool_result = next(m for m in messages if isinstance(m, ToolResultMessage))
-            self.last_tool_call_id = tool_result.tool_call_id
+            row_id = tool_result.content.split("[tool_call_id: ")[1].split("]")[0]
+            self.last_tool_call_id = row_id
             submit_call = ToolCallRequest(
                 id="call_2",
                 name="submit_findings",
                 args={
                     **VALID_SUBMIT_ARGS,
-                    "evidence": [
-                        {"tool_call_id": tool_result.tool_call_id, "detail": "empty pod list"}
-                    ],
+                    "evidence": [{"tool_call_id": row_id, "detail": "empty pod list"}],
                 },
             )
             return CompletionResult(
@@ -356,3 +355,120 @@ def test_alert_user_message_includes_annotations() -> None:
 
     alert_body = message.text.split("<alert>", 1)[1].split("</alert>", 1)[0]
     assert "cartservice is restarting repeatedly" in alert_body
+
+
+def test_investigate_round_trips_through_the_real_anthropic_wire_protocol() -> None:
+    """Drives investigate() through the REAL AnthropicProvider translation (not a fake
+    LLMClient that bypasses it), to pin that every tool_result block's tool_use_id
+    matches a tool_use block from the immediately preceding assistant turn — exactly
+    what the real Anthropic API enforces and what a hand-rolled fake can silently skip.
+    """
+    import json as json_module
+
+    from agent.findings import findings_tool_schema
+    from agent.tools.registry import schemas_for
+    from llm.anthropic_provider import AnthropicProvider
+    from llm.client import LLMClient
+
+    session = make_session()
+    incident = make_incident(session)
+
+    class _FakeContentBlock:
+        def __init__(self, type_: str, **kwargs: object) -> None:
+            self.type = type_
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+
+    class _FakeResponse:
+        def __init__(self, content: list[_FakeContentBlock], stop_reason: str) -> None:
+            self.content = content
+            self.stop_reason = stop_reason
+
+            class _U:
+                input_tokens = 5
+                output_tokens = 5
+
+            self.usage = _U()
+
+    class _FakeMessagesApi:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def create(self, **kwargs: object) -> _FakeResponse:
+            messages = kwargs["messages"]
+            assert isinstance(messages, list)
+            self.calls += 1
+
+            # Validate the wire protocol exactly as the real Anthropic API would:
+            # every tool_result's tool_use_id must match a tool_use id from the
+            # immediately preceding assistant message.
+            for i, message in enumerate(messages):
+                if message["role"] != "user" or not isinstance(message["content"], list):
+                    continue
+                for block in message["content"]:
+                    if block.get("type") != "tool_result":
+                        continue
+                    previous = messages[i - 1]
+                    assert previous["role"] == "assistant"
+                    prior_tool_use_ids = {
+                        b["id"] for b in previous["content"] if b.get("type") == "tool_use"
+                    }
+                    assert block["tool_use_id"] in prior_tool_use_ids, (
+                        f"tool_result references {block['tool_use_id']!r}, but the "
+                        f"preceding assistant turn only has tool_use ids {prior_tool_use_ids}"
+                    )
+
+            if self.calls == 1:
+                return _FakeResponse(
+                    content=[
+                        _FakeContentBlock(
+                            "tool_use", id="toolu_abc123", name="list_pods", input={}
+                        )
+                    ],
+                    stop_reason="tool_use",
+                )
+
+            # Second call: the tool_result content is prefixed with
+            # "[tool_call_id: <row_id>]" — that's the id the model is told to cite,
+            # distinct from the tool_use_id used for the wire protocol itself.
+            tool_result_block = next(
+                block
+                for message in messages
+                if message["role"] == "user" and isinstance(message["content"], list)
+                for block in message["content"]
+                if block.get("type") == "tool_result"
+            )
+            row_id = tool_result_block["content"].split("[tool_call_id: ")[1].split("]")[0]
+            good_args = {
+                **VALID_SUBMIT_ARGS,
+                "evidence": [{"tool_call_id": row_id, "detail": "empty pod list"}],
+            }
+            return _FakeResponse(
+                content=[
+                    _FakeContentBlock(
+                        "tool_use",
+                        id="toolu_submit1",
+                        name="submit_findings",
+                        input=good_args,
+                    )
+                ],
+                stop_reason="tool_use",
+            )
+
+    class _FakeAnthropicClient:
+        def __init__(self) -> None:
+            self.messages = _FakeMessagesApi()
+
+    provider = AnthropicProvider(client=_FakeAnthropicClient())
+    llm_client = LLMClient.__new__(LLMClient)
+    llm_client._model = "claude-haiku-5-5"  # noqa: SLF001
+    llm_client._provider = provider  # noqa: SLF001
+
+    tools = [ECHO_TOOL]
+    tool_schemas = schemas_for(tools) + [findings_tool_schema()]
+    assert json_module.dumps(tool_schemas)  # schemas must be JSON-serializable too
+
+    findings, usage = investigate(session, incident, tools, llm_client)
+
+    assert findings.status == "complete"
+    assert findings.root_cause == "missing REDIS_ADDR"

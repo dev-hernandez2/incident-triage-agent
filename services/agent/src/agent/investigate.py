@@ -82,7 +82,12 @@ def investigate(
     tools_by_name = {tool.name: tool for tool in tools}
 
     messages: list[Message] = [_alert_user_message(incident)]
-    recorded_tool_call_ids: set[str] = set()
+    # Maps the model's own tool_use id -> the tool_calls row id it corresponds to.
+    # ToolResultMessage.tool_call_id must stay keyed on the model's id (the wire
+    # protocol requires a tool_result to cite the preceding tool_use's own id);
+    # evidence citations are validated against this map's values, which are the
+    # real tool_calls row ids the spec requires.
+    model_call_id_to_row_id: dict[str, str] = {}
     total_usage = Usage(input_tokens=0, output_tokens=0)
     retried_submit = False
 
@@ -108,7 +113,8 @@ def investigate(
 
         submit_call = next((c for c in result.tool_calls if c.name == "submit_findings"), None)
         if submit_call is not None:
-            findings_or_error = _validate_submit(submit_call, recorded_tool_call_ids)
+            known_row_ids = set(model_call_id_to_row_id.values())
+            findings_or_error = _validate_submit(submit_call, known_row_ids)
             if isinstance(findings_or_error, Findings):
                 return findings_or_error, total_usage
 
@@ -138,10 +144,12 @@ def investigate(
                 session, incident.id, call.name, call.args, tool_result, error, duration_ms
             )
             session.flush()
-            recorded_tool_call_ids.add(str(row.id))
+            row_id = str(row.id)
+            model_call_id_to_row_id[call.id] = row_id
 
-            content = tool_result.output if tool_result is not None else f"error: {error}"
-            messages.append(ToolResultMessage(tool_call_id=str(row.id), content=content))
+            tool_output = tool_result.output if tool_result is not None else f"error: {error}"
+            content = f"[tool_call_id: {row_id}]\n{tool_output}"
+            messages.append(ToolResultMessage(tool_call_id=call.id, content=content))
 
         step_count += 1
 
