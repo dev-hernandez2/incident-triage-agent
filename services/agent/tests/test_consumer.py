@@ -1,9 +1,11 @@
 """Tests for the agent's message-processing logic (no live Kafka/Postgres)."""
 
 import uuid
+from decimal import Decimal
 
 from agent.main import process_message
 from db.models import Base, Incident
+from llm.types import CompletionResult, ToolCallRequest, Usage
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
@@ -46,9 +48,33 @@ def make_session() -> Session:
     return Session(engine)
 
 
+class _FakeLLMClient:
+    def complete(
+        self, messages: list[object], tools: list[dict[str, object]], system: str
+    ) -> CompletionResult:
+        good_args: dict[str, object] = {
+            "summary": "stub",
+            "root_cause": "stub",
+            "confidence": "low",
+            "evidence": [],
+            "affected_services": [],
+            "suggested_fix": "stub",
+            "ruled_out": [],
+        }
+        return CompletionResult(
+            text=None,
+            tool_calls=[ToolCallRequest(id="call_1", name="submit_findings", args=good_args)],
+            usage=Usage(1, 1),
+            stop_reason="tool_use",
+        )
+
+    def cost_usd(self, usage: Usage) -> Decimal:
+        return Decimal("0.0001")
+
+
 def test_process_message_creates_incident() -> None:
     session = make_session()
-    process_message(session, FIRING_RAW)
+    process_message(session, FIRING_RAW, [], _FakeLLMClient())  # type: ignore[arg-type]
     session.commit()
     rows = session.query(Incident).all()
     assert len(rows) == 1
@@ -57,9 +83,9 @@ def test_process_message_creates_incident() -> None:
 
 def test_process_message_duplicate_does_not_create_second_row() -> None:
     session = make_session()
-    process_message(session, FIRING_RAW)
+    process_message(session, FIRING_RAW, [], _FakeLLMClient())  # type: ignore[arg-type]
     session.commit()
-    process_message(session, DUPLICATE_RAW)
+    process_message(session, DUPLICATE_RAW, [], _FakeLLMClient())  # type: ignore[arg-type]
     session.commit()
     rows = session.query(Incident).all()
     assert len(rows) == 1
@@ -67,9 +93,29 @@ def test_process_message_duplicate_does_not_create_second_row() -> None:
 
 def test_process_message_malformed_does_not_raise() -> None:
     session = make_session()
-    process_message(session, MALFORMED_RAW)
+    process_message(session, MALFORMED_RAW, [], _FakeLLMClient())  # type: ignore[arg-type]
     session.commit()
     assert session.query(Incident).count() == 0
+
+
+class _FailingLLMClient:
+    def complete(
+        self, messages: list[object], tools: list[dict[str, object]], system: str
+    ) -> CompletionResult:
+        raise RuntimeError("simulated provider API error (e.g. a 429 or network blip)")
+
+    def cost_usd(self, usage: Usage) -> Decimal:
+        return Decimal("0.0001")
+
+
+def test_process_message_does_not_raise_when_the_llm_call_fails() -> None:
+    session = make_session()
+    process_message(session, FIRING_RAW, [], _FailingLLMClient())  # type: ignore[arg-type]
+    session.commit()
+
+    rows = session.query(Incident).all()
+    assert len(rows) == 1
+    assert rows[0].status == "received"
 
 
 def test_agent_main_module_imports_without_live_broker() -> None:

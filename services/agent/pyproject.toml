@@ -8,10 +8,12 @@ dependencies = [
     "kubernetes>=31.0",
     "httpx>=0.27",
     "triage-db",
+    "triage-llm",
 ]
 
 [tool.uv.sources]
 triage-db = { workspace = true }
+triage-llm = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

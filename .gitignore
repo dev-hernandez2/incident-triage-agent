@@ -38,3 +38,4 @@ chaos/.state/
 
 # Logs
 *.log
+.superpowers/
