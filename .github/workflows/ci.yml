@@ -30,6 +30,20 @@ jobs:
 
   eval-smoke:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: triage
+          POSTGRES_PASSWORD: triage
+          POSTGRES_DB: triage
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +55,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups --all-packages
 
+      - name: Run database migrations
+        run: uv run --package triage-db alembic -c db/alembic.ini upgrade head
+        env:
+          DATABASE_URL: postgresql://triage:triage@localhost:5432/triage
+
       - name: Replay fixture smoke test
         run: >
           uv run --package triage-eval eval --replay
@@ -51,3 +70,4 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           EVAL_BUDGET_USD: "2"
+          DATABASE_URL: postgresql://triage:triage@localhost:5432/triage
