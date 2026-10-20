@@ -68,3 +68,28 @@ def test_format_embed_color_reflects_confidence() -> None:
     high = format_embed(make_finding(confidence="high"))
     low = format_embed(make_finding(confidence="low"))
     assert high["color"] != low["color"]
+
+
+def test_format_embed_falls_back_to_a_default_color_for_unknown_confidence() -> None:
+    embed = format_embed(make_finding(confidence="unknown"))
+    assert isinstance(embed["color"], int)
+
+
+def test_format_embed_truncates_title_to_discord_limit() -> None:
+    embed = format_embed(make_finding(summary="x" * 5000))
+    title = embed["title"]
+    assert isinstance(title, str)
+    assert len(title) <= 256
+
+
+def test_format_embed_truncates_description_to_discord_limit() -> None:
+    embed = format_embed(make_finding(root_cause="x" * 5000))
+    description = embed["description"]
+    assert isinstance(description, str)
+    assert len(description) <= 4096
+
+
+def test_format_embed_truncates_field_values_to_discord_limit() -> None:
+    embed = format_embed(make_finding(suggested_fix="x" * 5000))
+    fix_field = next(f for f in _fields(embed) if f["name"] == "Suggested fix")
+    assert len(fix_field["value"]) <= 1024

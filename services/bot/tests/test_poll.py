@@ -1,8 +1,9 @@
+import asyncio
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from bot.main import fetch_unposted_findings, mark_posted
+from bot.main import fetch_unposted_findings, mark_posted, post_findings
 from db.models import Base, Finding, Incident
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
@@ -64,3 +65,43 @@ def test_mark_posted_sets_posted_at() -> None:
 
     refreshed = session.query(Finding).filter_by(id=finding.id).one()
     assert refreshed.posted_at is not None
+
+
+class _FakeChannel:
+    def __init__(self, fail_on: set[int] | None = None) -> None:
+        self.sent: list[object] = []
+        self._fail_on = fail_on or set()
+        self._calls = 0
+
+    async def send(self, embed: object) -> None:
+        call_index = self._calls
+        self._calls += 1
+        if call_index in self._fail_on:
+            raise RuntimeError("simulated Discord API failure")
+        self.sent.append(embed)
+
+
+def test_post_findings_marks_every_row_posted() -> None:
+    session = make_session()
+    _make_finding(session, posted_at=None)
+    _make_finding(session, posted_at=None)
+    session.commit()
+    channel = _FakeChannel()
+
+    asyncio.run(post_findings(session, channel))  # type: ignore[arg-type]
+
+    assert len(channel.sent) == 2
+    assert fetch_unposted_findings(session) == []
+
+
+def test_post_findings_skips_a_failing_row_and_still_posts_the_rest() -> None:
+    session = make_session()
+    _make_finding(session, posted_at=None)
+    _make_finding(session, posted_at=None)
+    session.commit()
+    channel = _FakeChannel(fail_on={0})
+
+    asyncio.run(post_findings(session, channel))  # type: ignore[arg-type]
+
+    assert len(channel.sent) == 1
+    assert len(fetch_unposted_findings(session)) == 1

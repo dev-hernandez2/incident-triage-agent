@@ -3,6 +3,7 @@
 No approve/deny buttons yet — that's a later step.
 """
 
+import logging
 import os
 from datetime import UTC, datetime
 
@@ -15,6 +16,8 @@ from sqlalchemy.orm import Session
 from bot.format import format_embed
 
 POLL_INTERVAL_SECONDS = 5.0
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_unposted_findings(session: Session) -> list[Finding]:
@@ -41,6 +44,21 @@ def _to_discord_embed(data: dict[str, object]) -> discord.Embed:
     return embed
 
 
+async def post_findings(session: Session, channel: discord.abc.Messageable) -> None:
+    """Posts every unposted finding, skipping (and logging) any row whose send fails
+    so one bad embed can't take the whole polling task down.
+    """
+    for finding in fetch_unposted_findings(session):
+        try:
+            embed = _to_discord_embed(format_embed(finding))
+            await channel.send(embed=embed)
+            mark_posted(session, finding)
+            session.commit()
+        except Exception:
+            session.rollback()
+            logger.exception("failed to post finding %s", finding.id)
+
+
 def main() -> None:
     database_url = os.environ.get("DATABASE_URL", "postgresql://triage:triage@localhost:5432/triage")
     channel_id = int(os.environ["DISCORD_CHANNEL_ID"])
@@ -57,11 +75,7 @@ def main() -> None:
             return
         session = Session(engine)
         try:
-            for finding in fetch_unposted_findings(session):
-                embed = _to_discord_embed(format_embed(finding))
-                await channel.send(embed=embed)
-                mark_posted(session, finding)
-                session.commit()
+            await post_findings(session, channel)
         finally:
             session.close()
 
