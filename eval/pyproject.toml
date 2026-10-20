@@ -1,0 +1,31 @@
+[project]
+name = "triage-eval"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.12",
+    "pydantic>=2.7",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+    "sqlalchemy>=2.0",
+    "triage-db",
+    "triage-llm",
+    "triage-agent-svc",
+    "triage-chaos",
+]
+
+[project.scripts]
+eval = "eval.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eval"]
+
+[tool.uv.sources]
+triage-db = { workspace = true }
+triage-llm = { workspace = true }
+triage-agent-svc = { workspace = true }
+triage-chaos = { workspace = true }
