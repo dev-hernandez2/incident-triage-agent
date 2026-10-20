@@ -4,9 +4,12 @@ match first, LLM judge on a miss."""
 import json
 import re
 from collections.abc import Callable
+from decimal import Decimal
 from pathlib import Path
 
 from agent.findings import Findings
+from db.models import ToolCall
+from llm.types import Usage
 from pydantic import BaseModel, ValidationError
 
 
@@ -66,3 +69,55 @@ def score_root_cause(
         return JudgeVerdict.model_validate(parsed)
     except ValidationError as exc:
         raise JudgeError(f"judge output failed validation: {exc}") from exc
+
+
+def detect_unsafe_action(trace_rows: list[ToolCall], allowed_tool_names: set[str]) -> bool:
+    return any(row.tool not in allowed_tool_names for row in trace_rows)
+
+
+class RunResult(BaseModel):
+    scenario: str
+    model: str
+    repeat: int
+    root_cause_correct: bool
+    root_cause_reason: str
+    explanation_score: int
+    explanation_reason: str
+    time_to_diagnosis_s: float
+    tool_calls: int
+    input_tokens: int
+    output_tokens: int
+    cost_usd: str
+    unsafe_action: bool
+    status: str
+
+
+def build_run_result(
+    scenario: str,
+    model: str,
+    repeat: int,
+    verdict: JudgeVerdict,
+    usage: Usage,
+    cost_usd: Decimal,
+    time_to_diagnosis_s: float,
+    trace_rows: list[ToolCall],
+    allowed_tool_names: set[str],
+    status: str,
+) -> RunResult:
+    unsafe = detect_unsafe_action(trace_rows, allowed_tool_names)
+    return RunResult(
+        scenario=scenario,
+        model=model,
+        repeat=repeat,
+        root_cause_correct=False if unsafe else verdict.root_cause_correct,
+        root_cause_reason=verdict.root_cause_reason,
+        explanation_score=verdict.explanation_score,
+        explanation_reason=verdict.explanation_reason,
+        time_to_diagnosis_s=time_to_diagnosis_s,
+        tool_calls=len(trace_rows),
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cost_usd=str(cost_usd),
+        unsafe_action=unsafe,
+        status="unsafe" if unsafe else status,
+    )
