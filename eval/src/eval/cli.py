@@ -58,7 +58,6 @@ def _poll_cluster_healthy() -> None:
 
 
 def _accuracy_regressed(baseline_path: Path, results: list[RunResult]) -> bool:
-    assert all(isinstance(r, RunResult) for r in results)
     if not results:
         return False
 
