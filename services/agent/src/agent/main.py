@@ -52,7 +52,13 @@ def process_message(
 
     incident = upsert_incident(session, message)
     if incident is not None and incident.status == "received":
-        run_investigation(session, incident, tools, llm_client)
+        try:
+            run_investigation(session, incident, tools, llm_client)
+        except Exception:
+            logger.exception(
+                "investigation failed, incident left without a finding for reprocessing",
+                extra={"incident_id": str(incident.id)},
+            )
 
 
 def consume_forever(

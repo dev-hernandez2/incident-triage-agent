@@ -98,5 +98,25 @@ def test_process_message_malformed_does_not_raise() -> None:
     assert session.query(Incident).count() == 0
 
 
+class _FailingLLMClient:
+    def complete(
+        self, messages: list[object], tools: list[dict[str, object]], system: str
+    ) -> CompletionResult:
+        raise RuntimeError("simulated provider API error (e.g. a 429 or network blip)")
+
+    def cost_usd(self, usage: Usage) -> Decimal:
+        return Decimal("0.0001")
+
+
+def test_process_message_does_not_raise_when_the_llm_call_fails() -> None:
+    session = make_session()
+    process_message(session, FIRING_RAW, [], _FailingLLMClient())  # type: ignore[arg-type]
+    session.commit()
+
+    rows = session.query(Incident).all()
+    assert len(rows) == 1
+    assert rows[0].status == "received"
+
+
 def test_agent_main_module_imports_without_live_broker() -> None:
     import agent.main  # noqa: F401
