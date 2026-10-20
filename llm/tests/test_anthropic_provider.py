@@ -1,7 +1,7 @@
 from typing import Any
 
 from llm.anthropic_provider import AnthropicProvider
-from llm.types import AssistantMessage, ToolCallRequest, ToolResultMessage, UserMessage
+from llm.types import AssistantMessage, Message, ToolCallRequest, ToolResultMessage, UserMessage
 
 
 class _FakeContentBlock:
@@ -43,7 +43,7 @@ def test_to_anthropic_messages_translates_each_message_kind() -> None:
     provider = AnthropicProvider(
         client=_FakeAnthropicClient(_FakeAnthropicResponse([], "end_turn", _FakeUsage(0, 0)))
     )
-    messages = [
+    messages: list[Message] = [
         UserMessage(text="<alert>boom</alert>"),
         AssistantMessage(
             text="checking pods",

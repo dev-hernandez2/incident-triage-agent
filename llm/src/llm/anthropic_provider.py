@@ -14,7 +14,8 @@ from llm.types import (
 
 
 class _AnthropicClientProtocol(Protocol):
-    messages: Any
+    @property
+    def messages(self) -> Any: ...
 
 
 class AnthropicProvider:

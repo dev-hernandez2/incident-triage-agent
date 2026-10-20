@@ -52,7 +52,7 @@ class _FakeLLMClient:
     def complete(
         self, messages: list[object], tools: list[dict[str, object]], system: str
     ) -> CompletionResult:
-        good_args = {
+        good_args: dict[str, object] = {
             "summary": "stub",
             "root_cause": "stub",
             "confidence": "low",

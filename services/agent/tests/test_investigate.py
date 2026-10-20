@@ -46,7 +46,7 @@ ECHO_TOOL = ToolSpec(
 )
 
 
-VALID_SUBMIT_ARGS = {
+VALID_SUBMIT_ARGS: dict[str, object] = {
     "summary": "cartservice crash-looping",
     "root_cause": "missing REDIS_ADDR",
     "confidence": "high",
@@ -150,7 +150,9 @@ def test_investigate_retries_once_on_invalid_submit_findings_then_succeeds() -> 
                 bad_args = {**VALID_SUBMIT_ARGS, "confidence": "extremely high", "evidence": []}
                 return CompletionResult(
                     text=None,
-                    tool_calls=[ToolCallRequest(id="call_1", name="submit_findings", args=bad_args)],
+                    tool_calls=[
+                        ToolCallRequest(id="call_1", name="submit_findings", args=bad_args)
+                    ],
                     usage=Usage(5, 5),
                     stop_reason="tool_use",
                 )

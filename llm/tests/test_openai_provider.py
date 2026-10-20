@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from llm.openai_provider import OpenAIProvider
-from llm.types import AssistantMessage, ToolCallRequest, ToolResultMessage, UserMessage
+from llm.types import AssistantMessage, Message, ToolCallRequest, ToolResultMessage, UserMessage
 
 
 class _FakeFunctionCall:
@@ -66,7 +66,7 @@ def test_to_openai_messages_translates_each_message_kind() -> None:
     provider = OpenAIProvider(
         client=_FakeOpenAIClient(_FakeOpenAIResponse([], _FakeOpenAIUsage(0, 0)))
     )
-    messages = [
+    messages: list[Message] = [
         UserMessage(text="<alert>boom</alert>"),
         AssistantMessage(
             text="checking pods",

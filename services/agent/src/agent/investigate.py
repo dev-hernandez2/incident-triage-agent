@@ -8,13 +8,6 @@ from pathlib import Path
 from typing import Protocol
 
 from db.models import Incident
-from pydantic import ValidationError
-from sqlalchemy.orm import Session
-
-from agent.findings import Findings, findings_tool_schema
-from agent.tools.base import ToolSpec, timed_run_tool
-from agent.tools.registry import schemas_for
-from agent.tools.trace import record_tool_call
 from llm.types import (
     AssistantMessage,
     CompletionResult,
@@ -24,6 +17,13 @@ from llm.types import (
     Usage,
     UserMessage,
 )
+from pydantic import ValidationError
+from sqlalchemy.orm import Session
+
+from agent.findings import Findings, findings_tool_schema
+from agent.tools.base import ToolSpec, timed_run_tool
+from agent.tools.registry import schemas_for
+from agent.tools.trace import record_tool_call
 
 MAX_STEPS = 15
 MAX_WALL_CLOCK_SECONDS = 300.0

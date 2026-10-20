@@ -3,10 +3,10 @@
 from decimal import Decimal
 
 from db.models import Finding, Incident
+from llm.types import Usage
 from sqlalchemy.orm import Session
 
 from agent.findings import Findings
-from llm.types import Usage
 
 
 def save_finding(

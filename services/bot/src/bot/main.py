@@ -4,7 +4,7 @@ No approve/deny buttons yet — that's a later step.
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import discord
 from db.models import Finding
@@ -26,15 +26,17 @@ def fetch_unposted_findings(session: Session) -> list[Finding]:
 
 
 def mark_posted(session: Session, finding: Finding) -> None:
-    finding.posted_at = datetime.now(timezone.utc)
+    finding.posted_at = datetime.now(UTC)
     session.flush()
 
 
 def _to_discord_embed(data: dict[str, object]) -> discord.Embed:
-    embed = discord.Embed(
-        title=data["title"], description=data["description"], color=data["color"]
-    )
-    for field in data["fields"]:  # type: ignore[union-attr]
+    color = data["color"]
+    assert isinstance(color, int)
+    embed = discord.Embed(title=data["title"], description=data["description"], color=color)
+    fields = data["fields"]
+    assert isinstance(fields, list)
+    for field in fields:
         embed.add_field(name=field["name"], value=field["value"], inline=field["inline"])
     return embed
 
@@ -51,7 +53,7 @@ def main() -> None:
     @tasks.loop(seconds=POLL_INTERVAL_SECONDS)
     async def poll_findings() -> None:
         channel = client.get_channel(channel_id)
-        if channel is None:
+        if not isinstance(channel, discord.abc.Messageable):
             return
         session = Session(engine)
         try:

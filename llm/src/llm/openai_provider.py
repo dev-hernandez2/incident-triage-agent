@@ -21,7 +21,8 @@ from llm.types import (
 
 
 class _OpenAIClientProtocol(Protocol):
-    chat: Any
+    @property
+    def chat(self) -> Any: ...
 
 
 class OpenAIProvider:

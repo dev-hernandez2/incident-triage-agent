@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from bot.format import format_embed
@@ -27,32 +27,40 @@ def make_finding(**overrides: object) -> Finding:
         output_tokens=200,
         cost_usd=Decimal("0.0045"),
         posted_at=None,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     defaults.update(overrides)
     return Finding(**defaults)
 
 
+def _fields(embed: dict[str, object]) -> list[dict[str, str]]:
+    fields = embed["fields"]
+    assert isinstance(fields, list)
+    return fields
+
+
 def test_format_embed_includes_summary_root_cause_and_confidence() -> None:
     embed = format_embed(make_finding())
     assert embed["title"] == "cartservice is crash-looping"
-    assert "missing REDIS_ADDR env var" in embed["description"]
-    field_names = [f["name"] for f in embed["fields"]]
+    description = embed["description"]
+    assert isinstance(description, str)
+    assert "missing REDIS_ADDR env var" in description
+    field_names = [f["name"] for f in _fields(embed)]
     assert "Confidence" in field_names
 
 
 def test_format_embed_shows_only_top_three_evidence_items() -> None:
     embed = format_embed(make_finding())
-    evidence_field = next(f for f in embed["fields"] if f["name"] == "Top evidence")
+    evidence_field = next(f for f in _fields(embed) if f["name"] == "Top evidence")
     assert evidence_field["value"].count("\n") == 2
     assert "a4" not in evidence_field["value"]
 
 
 def test_format_embed_includes_suggested_fix_and_cost() -> None:
     embed = format_embed(make_finding())
-    field_names = [f["name"] for f in embed["fields"]]
+    field_names = [f["name"] for f in _fields(embed)]
     assert "Suggested fix" in field_names
-    cost_field = next(f for f in embed["fields"] if f["name"] == "Cost")
+    cost_field = next(f for f in _fields(embed) if f["name"] == "Cost")
     assert "0.0045" in cost_field["value"]
 
 

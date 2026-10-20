@@ -23,7 +23,7 @@ def test_confidence_rejects_values_outside_the_allowed_set() -> None:
         Findings(
             summary="x",
             root_cause="x",
-            confidence="extremely high",
+            confidence="extremely high",  # type: ignore[arg-type]
             evidence=[],
             affected_services=[],
             suggested_fix="x",
@@ -42,14 +42,16 @@ def test_status_rejects_values_outside_the_allowed_set() -> None:
             affected_services=[],
             suggested_fix="x",
             ruled_out=[],
-            status="in_progress",
+            status="in_progress",  # type: ignore[arg-type]
         )
 
 
 def test_findings_tool_schema_excludes_status() -> None:
     schema = findings_tool_schema()
     assert schema["name"] == "submit_findings"
-    properties = schema["input_schema"]["properties"]
+    input_schema = schema["input_schema"]
+    assert isinstance(input_schema, dict)
+    properties = input_schema["properties"]
     assert "status" not in properties
     assert "summary" in properties
     assert "evidence" in properties

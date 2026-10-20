@@ -1,8 +1,8 @@
 """Validated JSON findings output: the agent's conclusion for one incident."""
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel
 
 
 class Evidence(BaseModel):
@@ -21,20 +21,11 @@ class Findings(BaseModel):
     status: Literal["complete", "budget_exceeded"]
 
 
-_SubmitFindingsArgs = create_model(
-    "SubmitFindingsArgs",
-    __base__=BaseModel,
-    summary=(str, ...),
-    root_cause=(str, ...),
-    confidence=(Literal["low", "medium", "high"], ...),
-    evidence=(list[Evidence], ...),
-    affected_services=(list[str], ...),
-    suggested_fix=(str, ...),
-    ruled_out=(list[str], ...),
-)
-
-
 def findings_tool_schema() -> dict[str, object]:
+    input_schema: dict[str, Any] = Findings.model_json_schema()
+    del input_schema["properties"]["status"]
+    input_schema["required"] = [f for f in input_schema["required"] if f != "status"]
+
     return {
         "name": "submit_findings",
         "description": (
@@ -42,5 +33,5 @@ def findings_tool_schema() -> dict[str, object]:
             "item's tool_call_id must match a tool call actually made during this "
             "investigation."
         ),
-        "input_schema": _SubmitFindingsArgs.model_json_schema(),
+        "input_schema": input_schema,
     }

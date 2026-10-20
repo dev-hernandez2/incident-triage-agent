@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from bot.main import fetch_unposted_findings, mark_posted
@@ -46,7 +46,7 @@ def _make_finding(session: Session, posted_at: datetime | None) -> Finding:
 def test_fetch_unposted_findings_returns_only_rows_with_null_posted_at() -> None:
     session = make_session()
     unposted = _make_finding(session, posted_at=None)
-    _make_finding(session, posted_at=datetime.now(timezone.utc))
+    _make_finding(session, posted_at=datetime.now(UTC))
     session.commit()
 
     results = fetch_unposted_findings(session)

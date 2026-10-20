@@ -9,6 +9,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from db.models import Incident
+from llm.client import LLMClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -20,7 +21,6 @@ from agent.logging_config import configure_logging
 from agent.messages import parse_alert_message
 from agent.tools.base import ToolSpec
 from agent.tools.registry import build_registry
-from llm.client import LLMClient
 
 if TYPE_CHECKING:
     from confluent_kafka import Consumer
