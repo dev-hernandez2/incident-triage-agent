@@ -73,6 +73,23 @@ def test_score_root_cause_calls_judge_on_miss() -> None:
     assert verdict.explanation_score == 4
 
 
+def test_score_root_cause_strips_markdown_code_fence_from_judge_response() -> None:
+    def judge_complete(prompt: str) -> str:
+        payload = json.dumps({
+            "root_cause_correct": True,
+            "root_cause_reason": "same underlying fault, different wording",
+            "explanation_score": 4,
+            "explanation_reason": "specific and evidence-backed",
+        })
+        return f"```json\n{payload}\n```"
+
+    verdict = score_root_cause(
+        _FINDINGS, "bad configuration (invalid PORT env var)", judge_complete
+    )
+    assert verdict.root_cause_correct is True
+    assert verdict.explanation_score == 4
+
+
 def test_score_root_cause_raises_judge_error_on_malformed_json() -> None:
     def judge_complete(prompt: str) -> str:
         return "not json at all"

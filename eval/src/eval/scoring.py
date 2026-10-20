@@ -46,6 +46,21 @@ def _judge_prompt(findings: Findings, ground_truth_label: str) -> str:
     return f"{template}\n\n## Case to grade\n\n```json\n{json.dumps(payload)}\n```"
 
 
+def _strip_code_fence(raw: str) -> str:
+    """Strip a wrapping markdown code fence (e.g. ```json ... ``` or ``` ... ```)
+    from a judge response, if present. Returns the input unchanged if there is
+    no wrapping fence."""
+    stripped = raw.strip()
+    if not (stripped.startswith("```") and stripped.endswith("```")):
+        return raw
+
+    without_markers = stripped[3:-3].strip()
+    first_line, _, rest = without_markers.partition("\n")
+    if rest and re.fullmatch(r"[A-Za-z0-9_+-]*", first_line.strip()):
+        return rest.strip()
+    return without_markers
+
+
 def score_root_cause(
     findings: Findings,
     ground_truth_label: str,
@@ -60,8 +75,9 @@ def score_root_cause(
         )
 
     raw = judge_complete(_judge_prompt(findings, ground_truth_label))
+    unfenced = _strip_code_fence(raw)
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(unfenced)
     except json.JSONDecodeError as exc:
         raise JudgeError(f"judge returned non-JSON output: {raw!r}") from exc
 
