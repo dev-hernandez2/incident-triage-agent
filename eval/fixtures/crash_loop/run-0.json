@@ -1,0 +1,30 @@
+[
+  {
+    "index": 0,
+    "tool": "list_pods",
+    "args": {
+      "namespace": "boutique",
+      "selector": "app=paymentservice"
+    },
+    "output": "[{\"name\": \"paymentservice-7d9f8c6b4d-x2vqp\", \"phase\": \"Running\", \"ready\": \"0/1\", \"restarts\": 7, \"last_state\": {\"terminated\": {\"reason\": \"Error\", \"exitCode\": 1, \"startedAt\": \"2026-10-20T14:02:11Z\", \"finishedAt\": \"2026-10-20T14:02:12Z\"}}}]"
+  },
+  {
+    "index": 1,
+    "tool": "describe_resource",
+    "args": {
+      "kind": "pod",
+      "name": "paymentservice-7d9f8c6b4d-x2vqp",
+      "namespace": "boutique"
+    },
+    "output": "{\"metadata\": {\"name\": \"paymentservice-7d9f8c6b4d-x2vqp\", \"namespace\": \"boutique\", \"labels\": {\"app\": \"paymentservice\"}}, \"spec\": {\"containers\": [{\"name\": \"server\", \"image\": \"paymentservice:v1\", \"env\": [{\"name\": \"PORT\", \"value\": \"not-a-port\"}, {\"name\": \"DISABLE_PROFILER\", \"value\": \"1\"}]}]}, \"status\": {\"phase\": \"Running\", \"containerStatuses\": [{\"name\": \"server\", \"ready\": false, \"restartCount\": 7, \"state\": {\"waiting\": {\"reason\": \"CrashLoopBackOff\"}}, \"lastState\": {\"terminated\": {\"reason\": \"Error\", \"exitCode\": 1, \"message\": \"panic: strconv.Atoi: parsing \\\"not-a-port\\\": invalid syntax\"}}}]}}"
+  },
+  {
+    "index": 2,
+    "tool": "get_events",
+    "args": {
+      "namespace": "boutique",
+      "since": "2026-10-20T13:55:00Z"
+    },
+    "output": "[{\"type\": \"Warning\", \"reason\": \"BackOff\", \"message\": \"Back-off restarting failed container server in pod paymentservice-7d9f8c6b4d-x2vqp_boutique(abc-123)\", \"count\": 7, \"first_timestamp\": \"2026-10-20T14:00:10Z\", \"last_timestamp\": \"2026-10-20T14:02:12Z\", \"involved_object\": {\"kind\": \"Pod\", \"name\": \"paymentservice-7d9f8c6b4d-x2vqp\"}}]"
+  }
+]

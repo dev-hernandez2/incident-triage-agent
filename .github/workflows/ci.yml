@@ -27,3 +27,27 @@ jobs:
 
       - name: Test (pytest)
         run: uv run pytest
+
+  eval-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --all-groups --all-packages
+
+      - name: Replay fixture smoke test
+        run: >
+          uv run --package triage-eval eval --replay
+          --fixtures eval/fixtures
+          --scenarios crash_loop,oom,bad_deploy
+          --repeats 1
+          --models claude-haiku-5-5
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVAL_BUDGET_USD: "2"
