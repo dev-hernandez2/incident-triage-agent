@@ -55,12 +55,28 @@ def _build_llm_client(model: str) -> LLMClientProtocol:
     )
 
 
-def _judge_complete(prompt: str) -> str:
+def _make_judge_complete() -> tuple[Callable[[str], str], Callable[[], Decimal]]:
+    """Builds a judge_complete closure plus a cost accessor.
+
+    `score_root_cause` expects a plain `Callable[[str], str]` (the
+    established Task 4/5 interface), so the per-call `Usage` can't be
+    returned through that function's return value. Instead this factory
+    accumulates cost on a judge `LLMClient` built once per run, and
+    exposes it via a zero-arg accessor the caller can read after
+    `score_root_cause` returns.
+    """
     from llm.types import UserMessage
 
     judge_client = _build_llm_client("claude-haiku-5-5")
-    result = judge_client.complete(messages=[UserMessage(text=prompt)], tools=[], system="")
-    return result.text or ""
+    judge_cost = Decimal("0")
+
+    def judge_complete(prompt: str) -> str:
+        nonlocal judge_cost
+        result = judge_client.complete(messages=[UserMessage(text=prompt)], tools=[], system="")
+        judge_cost += judge_client.cost_usd(result.usage)
+        return result.text or ""
+
+    return judge_complete, lambda: judge_cost
 
 
 def _default_settings() -> Settings:
@@ -125,8 +141,9 @@ def _run_once(
         chaos_revert()
         poll_cluster_healthy()
 
-    cost_usd = llm_client.cost_usd(usage)
-    verdict = score_root_cause(findings, definition.root_cause_label, _judge_complete)
+    judge_complete, judge_cost = _make_judge_complete()
+    verdict = score_root_cause(findings, definition.root_cause_label, judge_complete)
+    cost_usd = llm_client.cost_usd(usage) + judge_cost()
     trace_rows = list(
         session.scalars(select(ToolCall).where(ToolCall.incident_id == incident.id))
     )
@@ -145,6 +162,34 @@ def _run_once(
     )
 
 
+def _fixture_exists(config: RunnerConfig, scenario: str, repeat: int) -> bool:
+    return (config.fixtures_dir / scenario / f"run-{repeat}.json").exists()
+
+
+def _error_result(scenario: str, model: str, repeat: int, exc: Exception) -> RunResult:
+    """Minimal RunResult for a run that raised mid-way. Reuses existing
+    fields (root_cause_reason) rather than adding a new schema field, per
+    the constraint that RunResult's field set also drives report.py's
+    CSV/summary output. Cost/usage are zero since nothing billable is
+    known to have completed."""
+    return RunResult(
+        scenario=scenario,
+        model=model,
+        repeat=repeat,
+        root_cause_correct=False,
+        root_cause_reason=f"run errored: {exc}",
+        explanation_score=0,
+        explanation_reason="not judged: run raised an exception",
+        time_to_diagnosis_s=0.0,
+        tool_calls=0,
+        input_tokens=0,
+        output_tokens=0,
+        cost_usd="0",
+        unsafe_action=False,
+        status="error",
+    )
+
+
 def run_all(
     config: RunnerConfig,
     session_factory: Callable[[], Session],
@@ -159,24 +204,35 @@ def run_all(
     for model in config.models:
         for scenario in config.scenarios:
             for repeat in range(config.repeats):
+                if config.replay and not _fixture_exists(config, scenario, repeat):
+                    print(
+                        f"skipping {scenario} repeat={repeat}: "
+                        f"no fixture run-{repeat}.json found"
+                    )
+                    continue
+
                 estimate = spent / len(results) if results else Decimal("0.05")
                 if spent + estimate > config.budget_usd:
                     return results
 
                 session = session_factory()
                 try:
-                    result = _run_once(
-                        session=session,
-                        scenario=scenario,
-                        model=model,
-                        repeat=repeat,
-                        config=config,
-                        chaos_inject=chaos_inject,
-                        chaos_revert=chaos_revert,
-                        poll_alert_firing=poll_alert_firing,
-                        poll_cluster_healthy=poll_cluster_healthy,
-                    )
-                    session.commit()
+                    try:
+                        result = _run_once(
+                            session=session,
+                            scenario=scenario,
+                            model=model,
+                            repeat=repeat,
+                            config=config,
+                            chaos_inject=chaos_inject,
+                            chaos_revert=chaos_revert,
+                            poll_alert_firing=poll_alert_firing,
+                            poll_cluster_healthy=poll_cluster_healthy,
+                        )
+                        session.commit()
+                    except Exception as exc:  # isolate per-run failures, never lose prior results
+                        session.rollback()
+                        result = _error_result(scenario, model, repeat, exc)
                 finally:
                     session.close()
 
