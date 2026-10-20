@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Index, Text, func, text
+from sqlalchemy import Boolean, DateTime, Index, Integer, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -30,4 +30,20 @@ class Incident(Base):
     alertname: Mapped[str] = mapped_column(Text)
     labels: Mapped[dict[str, str]] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ToolCall(Base):
+    __tablename__ = "tool_calls"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    incident_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    tool: Mapped[str] = mapped_column(Text)
+    args: Mapped[dict[str, object]] = mapped_column(JSONB)
+    duration_ms: Mapped[int] = mapped_column(Integer)
+    output_bytes: Mapped[int] = mapped_column(Integer)
+    truncated: Mapped[bool] = mapped_column(Boolean)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
