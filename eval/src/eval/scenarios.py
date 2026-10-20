@@ -30,7 +30,7 @@ def build_synthetic_alert(scenario: str, service: str) -> dict[str, Any]:
     Returns:
         A dict with alertname, labels, and annotations matching alert format.
     """
-    from chaos.scenarios.base import load_definition  # type: ignore[import-untyped]
+    from chaos.scenarios.base import load_definition
 
     definition = load_definition(scenario)
     return {
