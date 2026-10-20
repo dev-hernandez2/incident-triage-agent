@@ -231,10 +231,6 @@ def run_all(
                         )
                         session.commit()
                     except Exception as exc:  # isolate per-run failures, never lose prior results
-                        import traceback
-
-                        print(f"DIAGNOSTIC: run {scenario}/{repeat} raised:")
-                        print(traceback.format_exc())
                         session.rollback()
                         result = _error_result(scenario, model, repeat, exc)
                 finally:
