@@ -1,6 +1,11 @@
 """Tests for the Incident model's table/index definition."""
 
-from db.models import Incident
+import uuid
+from decimal import Decimal
+
+from db.models import Base, Finding, Incident
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import Session
 
 
 def test_incident_tablename() -> None:
@@ -19,3 +24,45 @@ def test_incident_has_partial_unique_index_on_fingerprint() -> None:
     index = fingerprint_indexes[0]
     assert index.unique is True
     assert index.dialect_options["postgresql"]["where"] is not None
+
+
+def make_session() -> Session:
+    engine = create_engine("sqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def _register_gen_random_uuid(dbapi_connection, connection_record):  # type: ignore[no-untyped-def]
+        dbapi_connection.create_function("gen_random_uuid", 0, lambda: uuid.uuid4().hex)
+
+    Base.metadata.create_all(engine)
+    return Session(engine)
+
+
+def test_finding_row_round_trips_with_jsonb_fields() -> None:
+    session = make_session()
+    incident = Incident(
+        fingerprint="fp1", alertname="BoutiquePodCrashLooping", labels={}, status="received"
+    )
+    session.add(incident)
+    session.flush()
+
+    finding = Finding(
+        incident_id=incident.id,
+        summary="cartservice crash-looping",
+        root_cause="missing REDIS_ADDR",
+        confidence="high",
+        evidence=[{"tool_call_id": "abc", "detail": "pod event"}],
+        affected_services=["cartservice"],
+        suggested_fix="set REDIS_ADDR",
+        ruled_out=[],
+        status="complete",
+        input_tokens=100,
+        output_tokens=50,
+        cost_usd=Decimal("0.01"),
+    )
+    session.add(finding)
+    session.commit()
+
+    row = session.query(Finding).one()
+    assert row.evidence == [{"tool_call_id": "abc", "detail": "pod event"}]
+    assert row.posted_at is None
+    assert row.cost_usd == Decimal("0.01")
