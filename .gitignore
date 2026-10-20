@@ -39,3 +39,8 @@ chaos/.state/
 # Logs
 *.log
 .superpowers/
+
+# eval harness per-run output (gitignored except the committed baseline)
+eval/results/*.csv
+eval/results/*_summary.md
+!eval/results/latest_summary.md
