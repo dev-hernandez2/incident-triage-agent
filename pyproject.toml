@@ -25,9 +25,6 @@ strict = true
 explicit_package_bases = true
 mypy_path = "$MYPY_CONFIG_FILE_DIR/services/webhook/src:$MYPY_CONFIG_FILE_DIR/services/agent/src:$MYPY_CONFIG_FILE_DIR/services/executor/src:$MYPY_CONFIG_FILE_DIR/services/bot/src:$MYPY_CONFIG_FILE_DIR/chaos/src:$MYPY_CONFIG_FILE_DIR/chaos/tests:$MYPY_CONFIG_FILE_DIR/db/src:$MYPY_CONFIG_FILE_DIR/llm/src:$MYPY_CONFIG_FILE_DIR/eval/src"
 
-[tool.pytest.ini_options]
-addopts = "--import-mode=importlib"
-
 [dependency-groups]
 dev = [
     "ruff>=0.6",
