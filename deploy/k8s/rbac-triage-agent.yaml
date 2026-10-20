@@ -1,0 +1,34 @@
+# Read-only identity for services/agent. No access to secrets, and no
+# verbs beyond get/list/watch anywhere, so the agent cannot mutate cluster
+# state even if its own code tried to (see services/agent/src/agent/tools/).
+# Only services/executor may change cluster state, after human approval.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: triage-agent
+  namespace: triage
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: triage-agent-read-only
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "events", "services", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: triage-agent-read-only
+subjects:
+  - kind: ServiceAccount
+    name: triage-agent
+    namespace: triage
+roleRef:
+  kind: ClusterRole
+  name: triage-agent-read-only
+  apiGroup: rbac.authorization.k8s.io
