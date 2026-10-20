@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from agent.investigate import investigate
+from agent.investigate import _alert_user_message, investigate
 from agent.tools.base import ToolError, ToolSpec
 from db.models import Base, Incident
 from llm.types import CompletionResult, ToolCallRequest, Usage
@@ -325,3 +325,34 @@ def test_investigate_treats_alert_text_as_data_not_instructions() -> None:
     findings, usage = investigate(session, incident, [ECHO_TOOL], SubmitImmediatelyClient())  # type: ignore[arg-type]
 
     assert findings.status == "complete"
+
+
+def test_alert_user_message_includes_an_inline_untrusted_data_reminder() -> None:
+    session = make_session()
+    incident = make_incident(session)
+
+    message = _alert_user_message(incident)
+
+    assert "<alert>" in message.text
+    assert "</alert>" in message.text
+    assert "not instructions" in message.text.split("</alert>", 1)[1]
+    alert_body = message.text.split("<alert>", 1)[1].split("</alert>", 1)[0]
+    assert "cartservice-abc" in alert_body
+
+
+def test_alert_user_message_includes_annotations() -> None:
+    session = make_session()
+    incident = Incident(
+        fingerprint="fp-ann",
+        alertname="BoutiquePodCrashLooping",
+        labels={"pod": "cartservice-abc"},
+        annotations={"summary": "cartservice is restarting repeatedly"},
+        status="received",
+    )
+    session.add(incident)
+    session.flush()
+
+    message = _alert_user_message(incident)
+
+    alert_body = message.text.split("<alert>", 1)[1].split("</alert>", 1)[0]
+    assert "cartservice is restarting repeatedly" in alert_body
