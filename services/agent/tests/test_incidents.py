@@ -66,6 +66,23 @@ def test_firing_message_creates_incident() -> None:
     assert incident.status == "received"
 
 
+def test_firing_message_stores_annotations() -> None:
+    message = AlertMessage(
+        fingerprint="abc456",
+        status="firing",
+        alertname="BoutiquePodCrashLooping",
+        labels={"pod": "cartservice-abc"},
+        annotations={"summary": "cartservice is restarting repeatedly"},
+        starts_at="2026-10-16T10:00:00Z",
+        ends_at=None,
+    )
+    session = make_session()
+    incident = upsert_incident(session, message)
+    session.commit()
+    assert incident is not None
+    assert incident.annotations == {"summary": "cartservice is restarting repeatedly"}
+
+
 def test_duplicate_firing_message_is_noop() -> None:
     session = make_session()
     first = upsert_incident(session, FIRING)

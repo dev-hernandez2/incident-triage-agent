@@ -14,7 +14,15 @@ def test_incident_tablename() -> None:
 
 def test_incident_columns() -> None:
     columns = {c.name for c in Incident.__table__.columns}
-    assert columns == {"id", "fingerprint", "alertname", "labels", "status", "created_at"}
+    assert columns == {
+        "id",
+        "fingerprint",
+        "alertname",
+        "labels",
+        "annotations",
+        "status",
+        "created_at",
+    }
 
 
 def test_incident_has_partial_unique_index_on_fingerprint() -> None:
@@ -35,6 +43,22 @@ def make_session() -> Session:
 
     Base.metadata.create_all(engine)
     return Session(engine)
+
+
+def test_incident_annotations_round_trips_as_a_jsonb_dict() -> None:
+    session = make_session()
+    incident = Incident(
+        fingerprint="fp-annotations",
+        alertname="BoutiquePodCrashLooping",
+        labels={},
+        annotations={"summary": "cartservice is restarting repeatedly"},
+        status="received",
+    )
+    session.add(incident)
+    session.commit()
+
+    row = session.query(Incident).filter_by(fingerprint="fp-annotations").one()
+    assert row.annotations == {"summary": "cartservice is restarting repeatedly"}
 
 
 def test_finding_row_round_trips_with_jsonb_fields() -> None:

@@ -30,6 +30,7 @@ class Incident(Base):
     fingerprint: Mapped[str] = mapped_column(Text)
     alertname: Mapped[str] = mapped_column(Text)
     labels: Mapped[dict[str, str]] = mapped_column(JSONB)
+    annotations: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict, server_default="{}")
     status: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

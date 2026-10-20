@@ -20,6 +20,7 @@ def upsert_incident(session: Session, message: AlertMessage) -> Incident | None:
             fingerprint=message.fingerprint,
             alertname=message.alertname,
             labels=message.labels,
+            annotations=message.annotations,
             status="received",
         )
         session.add(incident)
