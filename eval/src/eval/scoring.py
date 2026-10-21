@@ -46,19 +46,19 @@ def _judge_prompt(findings: Findings, ground_truth_label: str) -> str:
     return f"{template}\n\n## Case to grade\n\n```json\n{json.dumps(payload)}\n```"
 
 
-def _strip_code_fence(raw: str) -> str:
-    """Strip a wrapping markdown code fence (e.g. ```json ... ``` or ``` ... ```)
-    from a judge response, if present. Returns the input unchanged if there is
-    no wrapping fence."""
-    stripped = raw.strip()
-    if not (stripped.startswith("```") and stripped.endswith("```")):
-        return raw
+_CODE_FENCE_RE = re.compile(r"```(?:[A-Za-z0-9_+-]*\n)?(.*?)```", re.DOTALL)
 
-    without_markers = stripped[3:-3].strip()
-    first_line, _, rest = without_markers.partition("\n")
-    if rest and re.fullmatch(r"[A-Za-z0-9_+-]*", first_line.strip()):
-        return rest.strip()
-    return without_markers
+
+def _strip_code_fence(raw: str) -> str:
+    """Strip a markdown code fence (e.g. ```json ... ``` or ``` ... ```) from
+    a judge response, if present anywhere in the text (real judge models
+    sometimes wrap the JSON in a fence even when told not to, and sometimes
+    add a line of prose before or after it). Returns the input unchanged if
+    there is no fence."""
+    match = _CODE_FENCE_RE.search(raw)
+    if match is None:
+        return raw
+    return match.group(1).strip()
 
 
 def score_root_cause(
