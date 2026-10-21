@@ -5,12 +5,7 @@ import pytest
 from agent.tools.base import ToolSpec
 from pydantic import BaseModel
 
-from eval.fixtures import (
-    FixtureExhaustedError,
-    FixtureMismatchError,
-    recording_tools,
-    replaying_tools,
-)
+from eval.fixtures import FixtureExhaustedError, recording_tools, replaying_tools
 
 
 class _EchoInput(BaseModel):
@@ -63,7 +58,7 @@ def test_replaying_tools_returns_recorded_output_in_order(tmp_path: Path) -> Non
     assert by_name["echo_b"].handler(_EchoInput(value="anything")) == "echo:second"
 
 
-def test_replaying_tools_raises_on_name_mismatch(tmp_path: Path) -> None:
+def test_replaying_tools_raises_when_a_tool_has_no_recorded_entries(tmp_path: Path) -> None:
     fixture_path = tmp_path / "run-0.json"
     fixture_path.write_text(json.dumps([
         {"index": 0, "tool": "echo_a", "args": {"value": "first"}, "output": "echo:first"},
@@ -72,8 +67,27 @@ def test_replaying_tools_raises_on_name_mismatch(tmp_path: Path) -> None:
     tools = replaying_tools([_make_echo_tool("echo_a"), _make_echo_tool("echo_b")], fixture_path)
     by_name = {t.name: t for t in tools}
 
-    with pytest.raises(FixtureMismatchError):
+    with pytest.raises(FixtureExhaustedError):
         by_name["echo_b"].handler(_EchoInput(value="anything"))
+
+
+def test_replaying_tools_tolerates_interleaved_calls_to_different_tools(tmp_path: Path) -> None:
+    fixture_path = tmp_path / "run-0.json"
+    fixture_path.write_text(json.dumps([
+        {"index": 0, "tool": "echo_a", "args": {"value": "a1"}, "output": "echo:a1"},
+        {"index": 1, "tool": "echo_b", "args": {"value": "b1"}, "output": "echo:b1"},
+        {"index": 2, "tool": "echo_a", "args": {"value": "a2"}, "output": "echo:a2"},
+    ]))
+
+    tools = replaying_tools([_make_echo_tool("echo_a"), _make_echo_tool("echo_b")], fixture_path)
+    by_name = {t.name: t for t in tools}
+
+    # Real model behavior: call the same tool twice in a row, rather than
+    # matching the fixture's exact recorded global order. Each tool's own
+    # per-name cursor still advances correctly.
+    assert by_name["echo_a"].handler(_EchoInput(value="anything")) == "echo:a1"
+    assert by_name["echo_a"].handler(_EchoInput(value="anything")) == "echo:a2"
+    assert by_name["echo_b"].handler(_EchoInput(value="anything")) == "echo:b1"
 
 
 def test_replaying_tools_raises_when_exhausted(tmp_path: Path) -> None:
