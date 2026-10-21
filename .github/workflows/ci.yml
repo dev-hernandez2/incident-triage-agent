@@ -71,3 +71,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           EVAL_BUDGET_USD: "2"
           DATABASE_URL: postgresql://triage:triage@localhost:5432/triage
+
+      - name: Show per-run detail (diagnostic, temporary)
+        if: always()
+        run: cat eval/results/*.csv
