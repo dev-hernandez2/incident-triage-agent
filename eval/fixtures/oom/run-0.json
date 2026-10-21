@@ -37,5 +37,44 @@
       "step": "60s"
     },
     "output": "[{\"metric\": {\"pod\": \"cartservice-5b7c9d8f6c-ht7mq\", \"container\": \"server\"}, \"min\": 15728640.0, \"max\": 21004288.0, \"last\": 21004288.0}]"
+  },
+  {
+    "index": 4,
+    "tool": "describe_resource",
+    "args": {
+      "kind": "pod",
+      "name": "cartservice-5b7c9d8f6c-ht7mq",
+      "namespace": "boutique"
+    },
+    "output": "{\"metadata\": {\"name\": \"cartservice-5b7c9d8f6c-ht7mq\", \"namespace\": \"boutique\", \"labels\": {\"app\": \"cartservice\"}}, \"spec\": {\"containers\": [{\"name\": \"server\", \"image\": \"cartservice:v1\", \"resources\": {\"requests\": {\"memory\": \"20Mi\", \"cpu\": \"50m\"}, \"limits\": {\"memory\": \"20Mi\"}}}]}, \"status\": {\"phase\": \"Running\", \"containerStatuses\": [{\"name\": \"server\", \"ready\": false, \"restartCount\": 4, \"state\": {\"waiting\": {\"reason\": \"CrashLoopBackOff\"}}, \"lastState\": {\"terminated\": {\"reason\": \"OOMKilled\", \"exitCode\": 137}}}]}}"
+  },
+  {
+    "index": 5,
+    "tool": "list_pods",
+    "args": {
+      "namespace": "boutique",
+      "selector": null
+    },
+    "output": "[{\"name\": \"cartservice-5b7c9d8f6c-ht7mq\", \"phase\": \"Running\", \"ready\": \"0/1\", \"restarts\": 4, \"last_state\": {\"terminated\": {\"reason\": \"OOMKilled\", \"exitCode\": 137, \"startedAt\": \"2026-10-20T15:10:02Z\", \"finishedAt\": \"2026-10-20T15:12:47Z\"}}}, {\"name\": \"frontend-6d8f9b7c5d-abc12\", \"phase\": \"Running\", \"ready\": \"1/1\", \"restarts\": 0, \"last_state\": null}]"
+  },
+  {
+    "index": 6,
+    "tool": "get_events",
+    "args": {
+      "namespace": "boutique",
+      "since": "2026-10-20T15:10:00Z"
+    },
+    "output": "[{\"type\": \"Warning\", \"reason\": \"OOMKilling\", \"message\": \"Memory cgroup out of memory: Killed process in container server of pod cartservice-5b7c9d8f6c-ht7mq, limit 20Mi\", \"count\": 5, \"first_timestamp\": \"2026-10-20T15:10:30Z\", \"last_timestamp\": \"2026-10-20T15:14:00Z\", \"involved_object\": {\"kind\": \"Pod\", \"name\": \"cartservice-5b7c9d8f6c-ht7mq\"}}]"
+  },
+  {
+    "index": 7,
+    "tool": "query_metrics",
+    "args": {
+      "promql": "kube_pod_container_resource_limits{namespace=\"boutique\", pod=\"cartservice-5b7c9d8f6c-ht7mq\", resource=\"memory\"}",
+      "start": "2026-10-20T15:05:00Z",
+      "end": "2026-10-20T15:13:00Z",
+      "step": "60s"
+    },
+    "output": "[{\"metric\": {\"pod\": \"cartservice-5b7c9d8f6c-ht7mq\", \"container\": \"server\"}, \"min\": 20971520.0, \"max\": 20971520.0, \"last\": 20971520.0}]"
   }
 ]

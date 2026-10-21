@@ -26,5 +26,44 @@
       "namespace": "boutique"
     },
     "output": "{\"metadata\": {\"name\": \"recommendationservice\", \"namespace\": \"boutique\"}, \"spec\": {\"template\": {\"spec\": {\"containers\": [{\"name\": \"server\", \"image\": \"recommendationservice:does-not-exist\"}]}}}, \"status\": {\"replicas\": 1, \"availableReplicas\": 0, \"unavailableReplicas\": 1}}"
+  },
+  {
+    "index": 3,
+    "tool": "describe_resource",
+    "args": {
+      "kind": "pod",
+      "name": "recommendationservice-6c8b7d5f9c-qk2lp",
+      "namespace": "boutique"
+    },
+    "output": "{\"metadata\": {\"name\": \"recommendationservice-6c8b7d5f9c-qk2lp\", \"namespace\": \"boutique\", \"labels\": {\"app\": \"recommendationservice\"}}, \"spec\": {\"containers\": [{\"name\": \"server\", \"image\": \"recommendationservice:does-not-exist\"}]}, \"status\": {\"phase\": \"Pending\", \"containerStatuses\": [{\"name\": \"server\", \"ready\": false, \"restartCount\": 0, \"state\": {\"waiting\": {\"reason\": \"ErrImagePull\", \"message\": \"rpc error: code = NotFound desc = failed to pull and unpack image: manifest unknown\"}}}]}}"
+  },
+  {
+    "index": 4,
+    "tool": "list_pods",
+    "args": {
+      "namespace": "boutique",
+      "selector": null
+    },
+    "output": "[{\"name\": \"recommendationservice-6c8b7d5f9c-qk2lp\", \"phase\": \"Pending\", \"ready\": \"0/1\", \"restarts\": 0, \"last_state\": null}, {\"name\": \"frontend-6d8f9b7c5d-abc12\", \"phase\": \"Running\", \"ready\": \"1/1\", \"restarts\": 0, \"last_state\": null}]"
+  },
+  {
+    "index": 5,
+    "tool": "get_events",
+    "args": {
+      "namespace": "boutique",
+      "since": "2026-10-20T16:03:00Z"
+    },
+    "output": "[{\"type\": \"Warning\", \"reason\": \"BackOff\", \"message\": \"Back-off pulling image \\\"recommendationservice:does-not-exist\\\"\", \"count\": 8, \"first_timestamp\": \"2026-10-20T16:01:10Z\", \"last_timestamp\": \"2026-10-20T16:05:20Z\", \"involved_object\": {\"kind\": \"Pod\", \"name\": \"recommendationservice-6c8b7d5f9c-qk2lp\"}}]"
+  },
+  {
+    "index": 6,
+    "tool": "query_metrics",
+    "args": {
+      "promql": "sum by (namespace, pod) (kube_pod_status_phase{namespace=\"boutique\", pod=\"recommendationservice-6c8b7d5f9c-qk2lp\", phase=\"Pending\"})",
+      "start": "2026-10-20T16:00:00Z",
+      "end": "2026-10-20T16:05:20Z",
+      "step": "60s"
+    },
+    "output": "[{\"metric\": {\"pod\": \"recommendationservice-6c8b7d5f9c-qk2lp\"}, \"min\": 1.0, \"max\": 1.0, \"last\": 1.0}]"
   }
 ]
