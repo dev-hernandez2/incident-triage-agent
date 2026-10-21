@@ -76,7 +76,7 @@ demo: ## Trigger a chaos scenario end-to-end and show the Discord flow
 	@echo "TODO: run chaos/ scenario against Online Boutique"
 
 eval: ## Run the offline agent accuracy eval harness
-	@echo "TODO: run eval/ harness against recorded incidents"
+	uv run --package triage-eval eval $(if $(REPLAY),--replay,) $(EVAL_ARGS)
 
 test: ## Run unit tests
 	uv run pytest

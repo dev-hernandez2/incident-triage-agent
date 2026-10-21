@@ -14,6 +14,7 @@ members = [
     "triage-bot",
     "triage-chaos",
     "triage-db",
+    "triage-eval",
     "triage-executor",
     "triage-llm",
     "triage-webhook",
@@ -2088,6 +2089,35 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.13" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "sqlalchemy", specifier = ">=2.0" },
+]
+
+[[package]]
+name = "triage-eval"
+version = "0.1.0"
+source = { editable = "eval" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "sqlalchemy" },
+    { name = "triage-agent-svc" },
+    { name = "triage-chaos" },
+    { name = "triage-db" },
+    { name = "triage-llm" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic", specifier = ">=2.7" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "sqlalchemy", specifier = ">=2.0" },
+    { name = "triage-agent-svc", editable = "services/agent" },
+    { name = "triage-chaos", editable = "chaos" },
+    { name = "triage-db", editable = "db" },
+    { name = "triage-llm", editable = "llm" },
+    { name = "typer", specifier = ">=0.12" },
 ]
 
 [[package]]
