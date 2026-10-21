@@ -65,13 +65,9 @@ jobs:
           uv run --package triage-eval eval --replay
           --fixtures eval/fixtures
           --scenarios crash_loop,oom,bad_deploy
-          --repeats 1
+          --repeats 3
           --models claude-haiku-5-5
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           EVAL_BUDGET_USD: "2"
           DATABASE_URL: postgresql://triage:triage@localhost:5432/triage
-
-      - name: Show per-run detail (diagnostic, temporary)
-        if: always()
-        run: cat eval/results/*.csv
