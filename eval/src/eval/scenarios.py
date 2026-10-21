@@ -44,7 +44,7 @@ def build_synthetic_alert(scenario: str, service: str) -> dict[str, Any]:
 
 
 def incident_fields_from_alert(
-    alertname: str, labels: dict[str, str], annotations: dict[str, str]
+    alertname: str, labels: dict[str, str], annotations: dict[str, str], run_id: str = ""
 ) -> dict[str, Any]:
     """Extract fields needed to construct a db.models.Incident from an alert.
 
@@ -52,11 +52,20 @@ def incident_fields_from_alert(
         alertname: The alert name (e.g., 'BoutiquePodCrashLooping')
         labels: Alert labels dict
         annotations: Alert annotations dict
+        run_id: An extra token the caller mixes into the fingerprint to keep
+            it unique across independent eval runs (e.g. "{scenario}-r{repeat}").
+            A real Alertmanager fingerprint is deliberately stable so the same
+            real-world alert firing twice dedupes against incidents' unique-
+            while-received index; each eval run instead represents an
+            independent, fresh incident, so this breaks that intentional
+            stability on purpose for the eval harness's own synthetic incidents.
 
     Returns:
         A dict with keys: fingerprint, alertname, labels, annotations, status
     """
-    fingerprint = f"eval-{alertname}-{labels.get('service', labels.get('pod', 'unknown'))}"
+    service_part = labels.get("service", labels.get("pod", "unknown"))
+    run_part = f"-{run_id}" if run_id else ""
+    fingerprint = f"eval-{alertname}-{service_part}{run_part}"
     return {
         "fingerprint": fingerprint,
         "alertname": alertname,

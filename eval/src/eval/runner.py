@@ -88,11 +88,13 @@ def _default_settings() -> Settings:
     )
 
 
-def _build_incident(scenario: str, alert: dict[str, Any] | None, service: str) -> Incident:
+def _build_incident(
+    scenario: str, alert: dict[str, Any] | None, service: str, run_id: str
+) -> Incident:
     if alert is None:
         alert = build_synthetic_alert(scenario, service)
     fields = incident_fields_from_alert(
-        alert["alertname"], alert.get("labels", {}), alert.get("annotations", {})
+        alert["alertname"], alert.get("labels", {}), alert.get("annotations", {}), run_id=run_id
     )
     return Incident(**fields)
 
@@ -119,14 +121,15 @@ def _run_once(
     tools = build_registry(_default_settings())
     tools_by_name = {t.name: t for t in tools}
 
+    run_id = f"{scenario}-r{repeat}"
     if config.replay:
         tools = replaying_tools(tools, fixture_path)
-        incident = _build_incident(scenario, None, service)
+        incident = _build_incident(scenario, None, service, run_id)
         start = time.monotonic()
     else:
         chaos_inject(scenario)
         alert = poll_alert_firing(alertname, config.alert_poll_timeout_s) if alertname else None
-        incident = _build_incident(scenario, alert, service)
+        incident = _build_incident(scenario, alert, service, run_id)
         tools = recording_tools(tools, fixture_path)
         start = time.monotonic()
 
