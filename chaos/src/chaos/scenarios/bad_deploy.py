@@ -1,12 +1,18 @@
 from functools import lru_cache
+from io import StringIO
 from pathlib import Path
 from typing import Any, ClassVar
 
 import yaml
+from ruamel.yaml import YAML
 
 from chaos.argocd_sync import ArgoCdClient
 from chaos.git_repo import BoutiqueDeployRepo
 from chaos.scenarios.base import Scenario, load_definition
+
+_yaml_rt = YAML()
+_yaml_rt.preserve_quotes = True
+_yaml_rt.width = 4096  # avoid ruamel wrapping long patch block-scalar lines
 
 _OVERLAY_FILE = "kustomization.yaml"
 _IMAGE_PATCH_PATH = "/spec/template/spec/containers/0/image"
@@ -43,7 +49,7 @@ class BadDeployScenario(Scenario):
         bad_tag = definition.default_params["bad_tag"]
 
         overlay = self._load_overlay(repo)
-        patch_entry = self._find_or_create_patch(overlay, service)
+        patch_entry, created = self._find_or_create_patch(overlay, service)
         prior_image = self._current_image(patch_entry)
         repo_name = prior_image.rsplit(":", 1)[0]
         new_image = f"{repo_name}:{bad_tag}"
@@ -53,7 +59,7 @@ class BadDeployScenario(Scenario):
         sha = repo.commit_and_push(f"chaos: inject bad_deploy on {service}")
         argocd.wait_for_sync(target_revision=sha)
 
-        return {"image": prior_image}
+        return {"image": prior_image, "created": created}
 
     def revert(  # type: ignore[override]
         self,
@@ -63,8 +69,11 @@ class BadDeployScenario(Scenario):
         saved_state: dict[str, Any],
     ) -> None:
         overlay = self._load_overlay(repo)
-        patch_entry = self._find_or_create_patch(overlay, service)
-        self._set_image(patch_entry, saved_state["image"])
+        if saved_state.get("created", False):
+            self._delete_patch(overlay, service)
+        else:
+            patch_entry, _ = self._find_or_create_patch(overlay, service)
+            self._set_image(patch_entry, saved_state["image"])
         self._save_overlay(repo, overlay)
 
         sha = repo.commit_and_push(f"chaos: revert bad_deploy on {service}")
@@ -72,17 +81,26 @@ class BadDeployScenario(Scenario):
 
     def _load_overlay(self, repo: BoutiqueDeployRepo) -> dict[str, Any]:
         path = repo.local_path / _OVERLAY_FILE
-        data: dict[str, Any] = yaml.safe_load(path.read_text())
+        data: dict[str, Any] = _yaml_rt.load(path.read_text())
         return data
 
     def _save_overlay(self, repo: BoutiqueDeployRepo, overlay: dict[str, Any]) -> None:
-        repo.write_file(_OVERLAY_FILE, yaml.dump(overlay))
+        buffer = StringIO()
+        _yaml_rt.dump(overlay, buffer)
+        repo.write_file(_OVERLAY_FILE, buffer.getvalue())
 
-    def _find_or_create_patch(self, overlay: dict[str, Any], service: str) -> dict[str, Any]:
+    def _find_or_create_patch(
+        self, overlay: dict[str, Any], service: str
+    ) -> tuple[dict[str, Any], bool]:
+        """Returns (patch_entry, created) where `created` is True iff this
+        call just appended a new entry (no pre-existing image-tag patch for
+        `service` was found). Callers must propagate `created` into the
+        inject() snapshot so revert() knows whether to delete the entry
+        entirely or merely reset its image value."""
         patches: list[dict[str, Any]] = overlay.setdefault("patches", [])
         for entry in patches:
             if entry["target"].get("name") == service and _IMAGE_PATCH_PATH in entry["patch"]:
-                return entry
+                return entry, False
 
         # No image-tag patch entry exists yet for this service (the real
         # cold-start state of deploy/boutique/overlay/kustomization.yaml,
@@ -99,7 +117,17 @@ class BadDeployScenario(Scenario):
             "patch": patch_text,
         }
         patches.append(new_entry)
-        return new_entry
+        return new_entry, True
+
+    def _delete_patch(self, overlay: dict[str, Any], service: str) -> None:
+        patches: list[dict[str, Any]] = overlay.setdefault("patches", [])
+        overlay["patches"] = [
+            entry
+            for entry in patches
+            if not (
+                entry["target"].get("name") == service and _IMAGE_PATCH_PATH in entry["patch"]
+            )
+        ]
 
     def _current_image(self, patch_entry: dict[str, Any]) -> str:
         patch_ops = yaml.safe_load(patch_entry["patch"])
