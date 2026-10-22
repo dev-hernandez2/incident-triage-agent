@@ -16,6 +16,11 @@ resources:
 # requests, for scheduling/fair-share): actual usage is single-digit
 # millicores, and a cpu limit causes CFS quota throttling on short request
 # bursts that trips the CPU-throttling alert even when the app is healthy.
+
+# chaos bad_deploy appends an image-tag override patch (targeting the
+# Deployment named by --service) to this file's `patches` list at runtime,
+# then commits it to this repo's Gitea mirror. revert() removes it again.
+# See chaos/src/chaos/scenarios/bad_deploy.py.
 patches:
   - target:
       kind: Deployment
