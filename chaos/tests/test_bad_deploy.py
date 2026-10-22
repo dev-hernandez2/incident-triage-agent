@@ -30,8 +30,9 @@ def seeded_remote(tmp_path: Path) -> Path:
             }
         ],
     }
-    (seed_path / "kustomization.yaml").write_text(yaml.dump(overlay))
-    seed_repo.index.add(["kustomization.yaml"])
+    (seed_path / "overlay").mkdir()
+    (seed_path / "overlay" / "kustomization.yaml").write_text(yaml.dump(overlay))
+    seed_repo.index.add(["overlay/kustomization.yaml"])
     seed_repo.index.commit("seed")
     seed_repo.create_remote("origin", str(remote_path))
     seed_repo.remote("origin").push(seed_repo.active_branch.name)
@@ -61,8 +62,9 @@ def unseeded_remote(tmp_path: Path) -> Path:
             }
         ],
     }
-    (seed_path / "kustomization.yaml").write_text(yaml.dump(overlay))
-    seed_repo.index.add(["kustomization.yaml"])
+    (seed_path / "overlay").mkdir()
+    (seed_path / "overlay" / "kustomization.yaml").write_text(yaml.dump(overlay))
+    seed_repo.index.add(["overlay/kustomization.yaml"])
     seed_repo.index.commit("seed")
     seed_repo.create_remote("origin", str(remote_path))
     seed_repo.remote("origin").push(seed_repo.active_branch.name)
@@ -128,7 +130,7 @@ def test_inject_commits_bad_tag_pushes_and_waits_for_sync(
     snapshot = scenario.inject(repo, argocd, "frontend")
 
     assert snapshot == {"image": "gcr.io/example/frontend:v1.0.0", "created": False}
-    overlay = yaml.safe_load((repo.local_path / "kustomization.yaml").read_text())
+    overlay = yaml.safe_load((repo.local_path / "overlay" / "kustomization.yaml").read_text())
     patched_image = overlay["patches"][0]["patch"]
     assert "does-not-exist" in patched_image
     # inject() must have waited for the real commit SHA, not a placeholder.
@@ -147,7 +149,7 @@ def test_revert_restores_prior_image_and_waits_for_sync(
 
     scenario.revert(repo, argocd, "frontend", snapshot)
 
-    overlay = yaml.safe_load((repo.local_path / "kustomization.yaml").read_text())
+    overlay = yaml.safe_load((repo.local_path / "overlay" / "kustomization.yaml").read_text())
     patched_image = overlay["patches"][0]["patch"]
     assert "gcr.io/example/frontend:v1.0.0" in patched_image
     assert "does-not-exist" not in patched_image
@@ -172,7 +174,7 @@ def test_inject_creates_patch_entry_when_none_exists_for_service(
     snapshot = scenario.inject(repo, argocd, "frontend")
 
     assert snapshot == {"image": real_image, "created": True}
-    overlay = yaml.safe_load((repo.local_path / "kustomization.yaml").read_text())
+    overlay = yaml.safe_load((repo.local_path / "overlay" / "kustomization.yaml").read_text())
     image_patches = [
         entry
         for entry in overlay["patches"]
@@ -205,7 +207,8 @@ def test_revert_deletes_patch_entry_it_created(
     repo, argocd = _repo_and_argocd(unseeded_remote, tmp_path, transport, polls=1)
     repo.ensure_cloned()
     scenario = BadDeployScenario()
-    before_overlay = yaml.safe_load((repo.local_path / "kustomization.yaml").read_text())
+    overlay_path = repo.local_path / "overlay" / "kustomization.yaml"
+    before_overlay = yaml.safe_load(overlay_path.read_text())
     before_patches = before_overlay["patches"]
 
     snapshot = scenario.inject(repo, argocd, "frontend")
@@ -213,7 +216,7 @@ def test_revert_deletes_patch_entry_it_created(
 
     scenario.revert(repo, argocd, "frontend", snapshot)
 
-    after_overlay = yaml.safe_load((repo.local_path / "kustomization.yaml").read_text())
+    after_overlay = yaml.safe_load((repo.local_path / "overlay" / "kustomization.yaml").read_text())
     after_patches = after_overlay["patches"]
     assert after_patches == before_patches
     image_patches = [
@@ -243,7 +246,7 @@ def test_revert_resets_but_does_not_delete_preexisting_patch_entry(
 
     scenario.revert(repo, argocd, "frontend", snapshot)
 
-    overlay = yaml.safe_load((repo.local_path / "kustomization.yaml").read_text())
+    overlay = yaml.safe_load((repo.local_path / "overlay" / "kustomization.yaml").read_text())
     image_patches = [
         entry
         for entry in overlay["patches"]
@@ -284,7 +287,16 @@ def test_save_overlay_preserves_comments_on_noop_roundtrip(tmp_path: Path) -> No
     comments and formatting (via ruamel.yaml in round-trip mode), since this
     file is committed to a Gitea-hosted GitOps repo Argo CD reconciles and
     silently stripping its documentation on every chaos run is a real
-    operational regression, not cosmetic."""
+    operational regression, not cosmetic.
+
+    This asserts an EXACT no-op round trip (saved content == original
+    content byte-for-byte), not just that a few comment substrings survive.
+    A bare substring check cannot catch a regression like a missing
+    YAML().indent(...) call, which preserves every comment while still
+    re-emitting the whole file with different indentation -- a ~100+ line
+    diff on every chaos commit that defeats the point of this GitOps
+    migration (readable diffs). Only an exact-equality assertion catches
+    that class of regression."""
 
     class _FakeRepo:
         def __init__(self, local_path: Path) -> None:
@@ -293,20 +305,42 @@ def test_save_overlay_preserves_comments_on_noop_roundtrip(tmp_path: Path) -> No
         def write_file(self, relative_path: str, content: str) -> None:
             (self.local_path / relative_path).write_text(content)
 
-    (tmp_path / "kustomization.yaml").write_text(_COMMENTED_OVERLAY)
+    (tmp_path / "overlay").mkdir()
+    (tmp_path / "overlay" / "kustomization.yaml").write_text(_COMMENTED_OVERLAY)
     fake_repo = _FakeRepo(tmp_path)
     scenario = BadDeployScenario()
 
     overlay = scenario._load_overlay(fake_repo)  # type: ignore[arg-type]
     scenario._save_overlay(fake_repo, overlay)  # type: ignore[arg-type]
 
-    result = (tmp_path / "kustomization.yaml").read_text()
-    assert "# chaos bad_deploy appends an image-tag override patch" in result
-    assert "revert() removes it again" in result
-    assert "Trim container resource requests/limits" in result
+    result = (tmp_path / "overlay" / "kustomization.yaml").read_text()
+    assert result == _COMMENTED_OVERLAY
 
 
 def test_ground_truth_uses_passed_service() -> None:
     gt = BadDeployScenario().ground_truth("frontend")
     assert gt["affected_service"] == "frontend"
     assert "image tag" in gt["root_cause_label"]
+
+
+def test_revert_without_a_snapshot_raises_clearly_and_pushes_no_commit(
+    seeded_remote: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """revert() called with an empty/malformed saved_state (e.g. the CLI's
+    `pending` state if inject() pushed but wait_for_sync timed out before the
+    snapshot was fully recorded) must fail clearly -- a ValueError naming the
+    problem -- rather than a bare KeyError, and must not push a bogus commit
+    to the remote."""
+    monkeypatch.setattr("time.sleep", lambda _: None)
+    transport = FakeArgoCdTransport()
+    repo, argocd = _repo_and_argocd(seeded_remote, tmp_path, transport, polls=1)
+    repo.ensure_cloned()
+    scenario = BadDeployScenario()
+
+    remote_repo = git.Repo(seeded_remote)
+    head_before = remote_repo.head.commit.hexsha
+
+    with pytest.raises(ValueError, match="no bad_deploy snapshot to revert"):
+        scenario.revert(repo, argocd, "frontend", {})
+
+    assert remote_repo.head.commit.hexsha == head_before

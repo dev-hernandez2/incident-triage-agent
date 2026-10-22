@@ -13,8 +13,9 @@ from chaos.scenarios.base import Scenario, load_definition
 _yaml_rt = YAML()
 _yaml_rt.preserve_quotes = True
 _yaml_rt.width = 4096  # avoid ruamel wrapping long patch block-scalar lines
+_yaml_rt.indent(mapping=2, sequence=4, offset=2)
 
-_OVERLAY_FILE = "kustomization.yaml"
+_OVERLAY_FILE = "overlay/kustomization.yaml"
 _IMAGE_PATCH_PATH = "/spec/template/spec/containers/0/image"
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _BASE_MANIFEST_PATH = _REPO_ROOT / "deploy" / "boutique" / "base" / "kubernetes-manifests.yaml"
@@ -68,6 +69,11 @@ class BadDeployScenario(Scenario):
         service: str,
         saved_state: dict[str, Any],
     ) -> None:
+        if "image" not in saved_state:
+            raise ValueError(
+                "no bad_deploy snapshot to revert — inject() may not have completed"
+            )
+
         overlay = self._load_overlay(repo)
         if saved_state.get("created", False):
             self._delete_patch(overlay, service)
