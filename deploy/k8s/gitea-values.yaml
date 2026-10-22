@@ -1,0 +1,36 @@
+# Gitea Helm values for an in-cluster, single-node, dependency-free Gitea
+# instance used only to host the chaos CLI's `boutique-deploy` repo that
+# Argo CD syncs from. Not intended for multi-user or production use.
+#
+# The chart has no SQLite-by-default behavior: disabling the bundled
+# postgresql/postgresql-ha/valkey-cluster subcharts without also setting
+# gitea.config.database leaves app.ini with no [database] section at all,
+# which crash-loops the configure-gitea init container. SQLite3 must be
+# configured explicitly.
+gitea:
+  admin:
+    username: chaos-admin
+    password: chaos-admin-password
+    email: chaos-admin@example.local
+  config:
+    server:
+      OFFLINE_MODE: true
+    service:
+      DISABLE_REGISTRATION: true
+    database:
+      DB_TYPE: sqlite3
+      PATH: /data/gitea/gitea.db
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
+persistence:
+  enabled: false
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false
+valkey-cluster:
+  enabled: false

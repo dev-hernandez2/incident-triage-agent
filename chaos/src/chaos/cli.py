@@ -1,9 +1,12 @@
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NoReturn
 
 import typer
 
+from chaos.argocd_sync import ArgoCdClient
+from chaos.git_repo import BoutiqueDeployRepo
 from chaos.scenarios.bad_deploy import BadDeployScenario
 from chaos.scenarios.base import Scenario, load_definition
 from chaos.scenarios.cpu_throttle import CpuThrottleScenario
@@ -15,6 +18,22 @@ from chaos.state import ActiveInjection, StateCorruptError, StateStore
 app = typer.Typer()
 
 NAMESPACE = "boutique"
+
+# bad_deploy-specific config: unlike the other scenarios (which talk to the
+# cluster directly via _build_k8s_client), bad_deploy mutates a GitOps repo
+# that Argo CD then syncs. These follow this repo's existing env-var /
+# .env convention (see .env.example) rather than introducing a new settings
+# module.
+GITEA_REPO_URL = os.environ.get("GITEA_REPO_URL", "")
+ARGOCD_URL = os.environ.get("ARGOCD_URL", "")
+ARGOCD_TOKEN = os.environ.get("ARGOCD_TOKEN", "")
+
+
+def _chaos_state_dir() -> Path:
+    # Same package-relative anchoring as _state_path(), so the local clone
+    # location doesn't depend on the caller's cwd.
+    return Path(__file__).resolve().parents[2] / ".state"
+
 
 SERVICES = [
     "adservice",
@@ -51,6 +70,19 @@ def _build_k8s_client() -> Any:
     from chaos.k8s import K8sClient
 
     return K8sClient(namespace=NAMESPACE)
+
+
+def _build_boutique_deploy_repo() -> BoutiqueDeployRepo:
+    repo = BoutiqueDeployRepo(
+        remote_url=GITEA_REPO_URL,
+        local_path=_chaos_state_dir() / "boutique-deploy",
+    )
+    repo.ensure_cloned()
+    return repo
+
+
+def _build_argocd_client() -> ArgoCdClient:
+    return ArgoCdClient(base_url=ARGOCD_URL, app_name="boutique", token=ARGOCD_TOKEN)
 
 
 def _fail(message: str) -> NoReturn:
@@ -124,8 +156,13 @@ def inject(
     )
     store.save(pending)
 
-    k8s = _build_k8s_client()
-    saved_state = scenario_instance.inject(k8s, target_service)
+    if isinstance(scenario_instance, BadDeployScenario):
+        repo = _build_boutique_deploy_repo()
+        argocd = _build_argocd_client()
+        saved_state = scenario_instance.inject(repo, argocd, target_service)
+    else:
+        k8s = _build_k8s_client()
+        saved_state = scenario_instance.inject(k8s, target_service)
 
     store.save(
         ActiveInjection(
@@ -159,8 +196,13 @@ def revert(scenario: str = typer.Argument(None)) -> None:
     scenario_cls = _resolve_scenario(active.scenario)
     scenario_instance = scenario_cls()
 
-    k8s = _build_k8s_client()
-    scenario_instance.revert(k8s, active.service, active.saved_state)
+    if isinstance(scenario_instance, BadDeployScenario):
+        repo = _build_boutique_deploy_repo()
+        argocd = _build_argocd_client()
+        scenario_instance.revert(repo, argocd, active.service, active.saved_state)
+    else:
+        k8s = _build_k8s_client()
+        scenario_instance.revert(k8s, active.service, active.saved_state)
 
     store.clear()
     typer.echo(f"reverted {active.scenario!r} on {active.service!r}")

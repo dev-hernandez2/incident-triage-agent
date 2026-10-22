@@ -22,6 +22,13 @@ chaos revert                      # restore the cluster to its prior state
 Only one scenario may be active at a time; `inject` refuses if another is
 already active, and `revert` restores exactly what `inject` overwrote.
 
+Note: `bad_deploy` requires Gitea and Argo CD to be running (provisioned
+by `make up`) — it injects/reverts its fault via a Git commit that Argo
+CD syncs, not a direct Kubernetes API call like the other scenarios.
+It needs `GITEA_REPO_URL`, `ARGOCD_URL`, and `ARGOCD_TOKEN` set (see
+`.env.example`, which documents how to mint an `ARGOCD_TOKEN` via
+`argocd login` + `argocd account generate-token`).
+
 ## Scenarios
 
 | Scenario | Target | Root cause |

@@ -182,6 +182,41 @@ def test_default_state_path_is_not_relative_to_the_current_working_directory() -
     assert path.is_absolute()
 
 
+def test_inject_bad_deploy_refuses_when_another_scenario_active(tmp_path: Path) -> None:
+    fake = FakeK8sClient()
+    _seed_paymentservice(fake)
+    p1, p2 = _patched(tmp_path, fake)
+    with (
+        p1,
+        p2,
+        patch("chaos.cli._build_boutique_deploy_repo") as repo_factory,
+        patch("chaos.cli._build_argocd_client") as argocd_factory,
+    ):
+        runner.invoke(app, ["inject", "crash_loop"])
+        result = runner.invoke(app, ["inject", "bad_deploy", "--service", "frontend"])
+
+    assert result.exit_code != 0
+    assert "already active" in result.stdout.lower()
+    repo_factory.assert_not_called()
+    argocd_factory.assert_not_called()
+
+
+def test_revert_errors_when_nothing_active_for_bad_deploy(tmp_path: Path) -> None:
+    fake = FakeK8sClient()
+    p1, p2 = _patched(tmp_path, fake)
+    with (
+        p1,
+        p2,
+        patch("chaos.cli._build_boutique_deploy_repo") as repo_factory,
+        patch("chaos.cli._build_argocd_client") as argocd_factory,
+    ):
+        result = runner.invoke(app, ["revert", "bad_deploy"])
+    assert result.exit_code != 0
+    assert "no active injection" in result.stdout.lower()
+    repo_factory.assert_not_called()
+    argocd_factory.assert_not_called()
+
+
 def test_inject_records_state_before_mutating_the_cluster(tmp_path: Path) -> None:
     """If inject() succeeds against the cluster but persisting state then
     fails, the CLI must not leave the cluster mutated with no record of
