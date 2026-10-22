@@ -2,11 +2,11 @@
 # instance used only to host the chaos CLI's `boutique-deploy` repo that
 # Argo CD syncs from. Not intended for multi-user or production use.
 #
-# NOTE: could not run `helm show values gitea-charts/gitea` in this
-# sandboxed environment (no cluster/helm repo access), so this is a
-# best-effort starting point based on the chart's documented defaults.
-# Verify against the chart's actual defaults on first `make up` run and
-# adjust if SQLite isn't the bundled default.
+# The chart has no SQLite-by-default behavior: disabling the bundled
+# postgresql/postgresql-ha/valkey-cluster subcharts without also setting
+# gitea.config.database leaves app.ini with no [database] section at all,
+# which crash-loops the configure-gitea init container. SQLite3 must be
+# configured explicitly.
 gitea:
   admin:
     username: chaos-admin
@@ -17,6 +17,15 @@ gitea:
       OFFLINE_MODE: true
     service:
       DISABLE_REGISTRATION: true
+    database:
+      DB_TYPE: sqlite3
+      PATH: /data/gitea/gitea.db
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
 persistence:
   enabled: false
 postgresql:
