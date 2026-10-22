@@ -41,6 +41,8 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 			kill $$GITEA_PID; \
 	fi
 	kubectl apply -f deploy/k8s/argocd-boutique-app.yaml
+	kubectl wait --for=jsonpath='{.status.sync.status}'=Synced \
+		application/boutique -n gitops --timeout=300s
 	kubectl wait --for=jsonpath='{.status.health.status}'=Healthy \
 		application/boutique -n gitops --timeout=300s
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
