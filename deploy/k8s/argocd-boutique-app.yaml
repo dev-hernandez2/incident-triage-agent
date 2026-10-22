@@ -1,0 +1,24 @@
+# Argo CD Application that syncs Online Boutique from the in-cluster
+# Gitea `boutique-deploy` repo (seeded by `make up`) into the `boutique`
+# namespace. Replaces the old direct `kubectl apply -k
+# deploy/boutique/overlay/` bring-up step.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: boutique
+  namespace: gitops
+spec:
+  project: default
+  source:
+    repoURL: http://gitea-http.gitops.svc.cluster.local:3000/chaos-admin/boutique-deploy.git
+    targetRevision: main
+    path: overlay
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boutique
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

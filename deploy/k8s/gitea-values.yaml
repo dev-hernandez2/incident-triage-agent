@@ -1,0 +1,27 @@
+# Gitea Helm values for an in-cluster, single-node, dependency-free Gitea
+# instance used only to host the chaos CLI's `boutique-deploy` repo that
+# Argo CD syncs from. Not intended for multi-user or production use.
+#
+# NOTE: could not run `helm show values gitea-charts/gitea` in this
+# sandboxed environment (no cluster/helm repo access), so this is a
+# best-effort starting point based on the chart's documented defaults.
+# Verify against the chart's actual defaults on first `make up` run and
+# adjust if SQLite isn't the bundled default.
+gitea:
+  admin:
+    username: chaos-admin
+    password: chaos-admin-password
+    email: chaos-admin@example.local
+  config:
+    server:
+      OFFLINE_MODE: true
+    service:
+      DISABLE_REGISTRATION: true
+persistence:
+  enabled: false
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false
+valkey-cluster:
+  enabled: false

@@ -14,8 +14,35 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 		kind create cluster --name $(CLUSTER_NAME) --config deploy/k8s/kind-config.yaml; \
 	fi
 	kubectl config use-context kind-$(CLUSTER_NAME)
-	kubectl apply -k deploy/boutique/overlay/
-	kubectl wait --for=condition=Available deployment --all -n boutique --timeout=300s
+	helm repo add gitea-charts https://dl.gitea.io/charts/ >/dev/null 2>&1 || true
+	helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true
+	helm repo update gitea-charts argo
+	kubectl create namespace gitops --dry-run=client -o yaml | kubectl apply -f -
+	helm upgrade --install gitea gitea-charts/gitea \
+		--namespace gitops \
+		-f deploy/k8s/gitea-values.yaml \
+		--wait --timeout 5m
+	helm upgrade --install argocd argo/argo-cd \
+		--namespace gitops \
+		--wait --timeout 5m
+	@if ! kubectl exec -n gitops deploy/gitea -- gitea admin repo list 2>/dev/null | grep -q boutique-deploy; then \
+		kubectl port-forward -n gitops svc/gitea-http 3001:3000 >/tmp/triage-gitea-forward.log 2>&1 & \
+			GITEA_PID=$$!; \
+			for i in $$(seq 1 30); do nc -z localhost 3001 && break; sleep 1; done; \
+			curl -s -u chaos-admin:chaos-admin-password -X POST \
+				http://localhost:3001/api/v1/user/repos \
+				-H "Content-Type: application/json" \
+				-d '{"name":"boutique-deploy","private":false}' >/dev/null; \
+			rm -rf /tmp/boutique-deploy-seed; \
+			mkdir -p /tmp/boutique-deploy-seed && cp -r deploy/boutique/. /tmp/boutique-deploy-seed/ && \
+			cd /tmp/boutique-deploy-seed && git init -q -b main && git add -A && git commit -q -m "seed" && \
+			git remote add origin http://chaos-admin:chaos-admin-password@localhost:3001/chaos-admin/boutique-deploy.git && \
+			git push -u origin main; \
+			kill $$GITEA_PID; \
+	fi
+	kubectl apply -f deploy/k8s/argocd-boutique-app.yaml
+	kubectl wait --for=jsonpath='{.status.health.status}'=Healthy \
+		application/boutique -n gitops --timeout=300s
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
 	helm repo add grafana https://grafana.github.io/helm-charts >/dev/null 2>&1 || true
 	helm repo update prometheus-community grafana
@@ -67,6 +94,8 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 	@echo "Grafana login: admin / admin"
 	@echo "Kafka:      kubectl port-forward -n triage svc/kafka 9092:9092"
 	@echo "Postgres:   kubectl port-forward -n triage svc/postgres-postgresql 5432:5432"
+	@echo "Gitea:      http://localhost:3001  (run: kubectl port-forward -n gitops svc/gitea-http 3001:3000, login chaos-admin/chaos-admin-password)"
+	@echo "Argo CD:    kubectl port-forward -n gitops svc/argocd-server 8081:443 (login: admin / $$(kubectl -n gitops get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d))"
 	@echo "Run webhook/agent locally against those forwarded ports (see .env.example)."
 
 down: ## Tear down the kind cluster
