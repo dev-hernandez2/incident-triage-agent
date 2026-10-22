@@ -1,4 +1,5 @@
 import time
+from typing import Any
 
 import httpx
 
@@ -23,10 +24,11 @@ class ArgoCdClient:
         )
 
     def _fetch_status(self) -> dict[str, str]:
-        response = self._http.get(f"/api/v1/applications/{self.app_name}/sync-status")
+        response = self._http.get(f"/api/v1/applications/{self.app_name}")
         response.raise_for_status()
-        data: dict[str, str] = response.json()
-        return data
+        data: dict[str, Any] = response.json()
+        sync: dict[str, str] = data["status"]["sync"]
+        return sync
 
     def current_sync_revision(self) -> str:
         return self._fetch_status()["revision"]

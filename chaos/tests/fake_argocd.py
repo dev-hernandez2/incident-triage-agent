@@ -22,7 +22,8 @@ class FakeArgoCdTransport(httpx.BaseTransport):
         self._poll_count = 0
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
-        assert request.url.path.endswith("/sync-status")
+        assert "/api/v1/applications/" in request.url.path
+        assert not request.url.path.endswith("/sync-status")
         if self.synced_after_polls is not None:
             self._poll_count += 1
             if self._poll_count >= self.synced_after_polls:
@@ -31,7 +32,11 @@ class FakeArgoCdTransport(httpx.BaseTransport):
             else:
                 self.sync_status = "Progressing"
         body: dict[str, Any] = {
-            "revision": self.synced_revision,
-            "status": self.sync_status,
+            "status": {
+                "sync": {
+                    "revision": self.synced_revision,
+                    "status": self.sync_status,
+                }
+            }
         }
         return httpx.Response(200, json=body)
