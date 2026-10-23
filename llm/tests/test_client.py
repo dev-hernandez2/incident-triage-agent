@@ -28,3 +28,8 @@ def test_cost_usd_delegates_to_pricing_table() -> None:
     client = LLMClient(model="claude-haiku-5-5", anthropic_api_key="fake-key")
     cost = client.cost_usd(Usage(input_tokens=1_000_000, output_tokens=0))
     assert cost == Decimal("1.00")
+
+
+def test_model_property_exposes_the_configured_model_name() -> None:
+    client = LLMClient(model="claude-haiku-5-5", anthropic_api_key="fake-key")
+    assert client.model == "claude-haiku-5-5"

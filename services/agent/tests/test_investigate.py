@@ -69,6 +69,7 @@ def test_investigate_cites_a_real_tool_call_id_in_evidence() -> None:
     list_pods_call = ToolCallRequest(id="call_1", name="list_pods", args={})
 
     class ScriptedTwoStepClient:
+        model = "fake-model"
         def __init__(self) -> None:
             self.calls = 0
             self.last_tool_call_id: str | None = None
@@ -128,6 +129,7 @@ def test_investigate_stops_at_step_budget_with_budget_exceeded_status() -> None:
     incident = make_incident(session)
 
     class AlwaysToolCallClient:
+        model = "fake-model"
         def complete(
             self, messages: list[object], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -152,6 +154,7 @@ def test_investigate_retries_once_on_invalid_submit_findings_then_succeeds() -> 
     incident = make_incident(session)
 
     class InvalidThenValidClient:
+        model = "fake-model"
         def __init__(self) -> None:
             self.calls = 0
 
@@ -191,6 +194,7 @@ def test_investigate_rejects_evidence_citing_an_unknown_tool_call_id() -> None:
     incident = make_incident(session)
 
     class BadCitationThenBadCitationClient:
+        model = "fake-model"
         def complete(
             self, messages: list[object], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -230,6 +234,7 @@ def test_investigate_rejects_evidence_citing_a_tool_call_from_another_incident()
     session.commit()
 
     class CrossIncidentCitationClient:
+        model = "fake-model"
         def complete(
             self, messages: list[object], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -272,6 +277,7 @@ def test_investigate_records_failed_tool_calls_and_continues() -> None:
     )
 
     class FailThenSubmitClient:
+        model = "fake-model"
         def __init__(self) -> None:
             self.calls = 0
 
@@ -321,6 +327,7 @@ def test_investigate_treats_alert_text_as_data_not_instructions() -> None:
     session.flush()
 
     class SubmitImmediatelyClient:
+        model = "fake-model"
         def complete(
             self, messages: list[object], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -386,6 +393,7 @@ def test_investigate_records_investigations_total_on_success() -> None:
     incident = make_incident(session)
 
     class SubmitImmediatelyClient:
+        model = "fake-model"
         def complete(
             self, messages: list[object], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -409,6 +417,42 @@ def test_investigate_records_investigations_total_on_success() -> None:
     assert after == before + 1.0
 
 
+def test_investigate_labels_token_metrics_with_the_llm_client_model_not_unknown() -> None:
+    """Pins that investigate() reads llm_client.model directly rather than
+    falling back to "unknown" via getattr(llm_client, "_model", "unknown")
+    -- a silent fallback would relabel every tokens_total/cost_usd_total
+    sample to model="unknown" without any test failure."""
+    session = make_session()
+    incident = make_incident(session)
+
+    class SubmitImmediatelyClient:
+        model = "claude-haiku-5-5"
+
+        def complete(
+            self, messages: list[object], tools: list[dict[str, object]], system: str
+        ) -> CompletionResult:
+            good_args = {**VALID_SUBMIT_ARGS, "evidence": []}
+            return CompletionResult(
+                text=None,
+                tool_calls=[ToolCallRequest(id="call_1", name="submit_findings", args=good_args)],
+                usage=Usage(5, 5),
+                stop_reason="tool_use",
+            )
+
+        def cost_usd(self, usage: Usage) -> Decimal:
+            return Decimal("0.001")
+
+    before = (
+        _metric_value("tokens_total", {"direction": "input", "model": "claude-haiku-5-5"}) or 0.0
+    )
+
+    investigate(session, incident, [ECHO_TOOL], SubmitImmediatelyClient())  # type: ignore[arg-type]
+
+    after = _metric_value("tokens_total", {"direction": "input", "model": "claude-haiku-5-5"})
+    assert after == before + 5.0
+    assert _metric_value("tokens_total", {"direction": "input", "model": "unknown"}) is None
+
+
 def test_investigate_records_tool_errors_total_on_tool_failure() -> None:
     session = make_session()
     incident = make_incident(session)
@@ -425,6 +469,7 @@ def test_investigate_records_tool_errors_total_on_tool_failure() -> None:
     )
 
     class FailThenSubmitClient:
+        model = "fake-model"
         def __init__(self) -> None:
             self.calls = 0
 
@@ -612,6 +657,7 @@ def test_investigate_creates_investigate_and_tool_spans() -> None:
     list_pods_call = ToolCallRequest(id="call_1", name="list_pods", args={})
 
     class ScriptedToolThenSubmitClient:
+        model = "fake-model"
         def __init__(self) -> None:
             self.calls = 0
 

@@ -42,6 +42,9 @@ _tracer = trace.get_tracer("triage-agent")
 
 
 class LLMClientProtocol(Protocol):
+    @property
+    def model(self) -> str: ...
+
     def complete(
         self, messages: list[Message], tools: list[dict[str, object]], system: str
     ) -> CompletionResult: ...
@@ -108,7 +111,7 @@ def investigate(
 
         start = time.monotonic()
         step_count = 0
-        llm_client_model = getattr(llm_client, "_model", "unknown")
+        llm_client_model = llm_client.model
 
         def _finish(findings: Findings, usage: Usage) -> tuple[Findings, Usage]:
             duration = time.monotonic() - start

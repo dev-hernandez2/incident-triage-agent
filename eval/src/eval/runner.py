@@ -45,6 +45,9 @@ class RunnerConfig(BaseModel):
 
 
 class LLMClientProtocol(Protocol):
+    @property
+    def model(self) -> str: ...
+
     def complete(self, messages: Any, tools: Any, system: str) -> Any: ...
     def cost_usd(self, usage: Any) -> Decimal: ...
 

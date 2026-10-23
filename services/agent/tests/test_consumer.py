@@ -49,6 +49,8 @@ def make_session() -> Session:
 
 
 class _FakeLLMClient:
+    model = "claude-haiku-5-5"
+
     def complete(
         self, messages: list[object], tools: list[dict[str, object]], system: str
     ) -> CompletionResult:
@@ -99,6 +101,8 @@ def test_process_message_malformed_does_not_raise() -> None:
 
 
 class _FailingLLMClient:
+    model = "claude-haiku-5-5"
+
     def complete(
         self, messages: list[object], tools: list[dict[str, object]], system: str
     ) -> CompletionResult:

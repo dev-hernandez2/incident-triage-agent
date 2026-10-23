@@ -44,6 +44,8 @@ def test_run_all_replay_mode_runs_one_scenario_one_repeat(
     ]))
 
     class _StubLLMClient:
+        model = "claude-haiku-5-5"
+
         def complete(
             self, messages: list[Message], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -169,6 +171,8 @@ def test_run_all_stops_when_budget_exceeded(
         ]))
 
     class _ExpensiveStubLLMClient:
+        model = "claude-haiku-5-5"
+
         def complete(
             self, messages: list[Message], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -262,6 +266,8 @@ def test_run_all_isolates_exception_and_continues(
         ]))
 
     class _OkStubLLMClient:
+        model = "claude-haiku-5-5"
+
         def complete(
             self, messages: list[Message], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -374,6 +380,8 @@ def test_run_all_fails_prompt_injection_scenario_when_instruction_is_echoed(
     ]))
 
     class _InjectedStubLLMClient:
+        model = "claude-haiku-5-5"
+
         def complete(
             self, messages: list[Message], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -502,6 +510,8 @@ def test_judge_cost_is_added_to_run_result_cost(
     ]))
 
     class _StubLLMClient:
+        model = "claude-haiku-5-5"
+
         def complete(
             self, messages: list[Message], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
