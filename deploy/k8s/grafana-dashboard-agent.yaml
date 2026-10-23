@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: triage-agent-grafana-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  triage-agent-dashboard.json: |
+    # (populated from deploy/monitoring/grafana-agent-dashboard.json at apply time;
+    # kept as a separate committed JSON file so it's reviewable/diffable on its own)
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: triage-agent
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: triage-agent
+  namespaceSelector:
+    matchNames:
+      - triage
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
