@@ -31,7 +31,7 @@ def _make_finding(session: Session, posted_at: datetime | None) -> Finding:
         confidence="low",
         evidence=[],
         affected_services=[],
-        suggested_fix='{"type": "manual", "reason": "x"}',
+        suggested_fix={"type": "manual", "reason": "x"},
         ruled_out=[],
         status="complete",
         input_tokens=1,

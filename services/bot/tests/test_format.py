@@ -8,7 +8,6 @@ from db.models import Finding
 
 
 def make_finding(**overrides: object) -> Finding:
-    import json
     defaults: dict[str, object] = dict(
         id=uuid.uuid4(),
         incident_id=uuid.uuid4(),
@@ -22,9 +21,9 @@ def make_finding(**overrides: object) -> Finding:
             {"tool_call_id": "a4", "detail": "a fourth piece of evidence"},
         ],
         affected_services=["cartservice"],
-        suggested_fix=json.dumps(RollbackAction(
+        suggested_fix=RollbackAction(
             type="rollback", deployment="cartservice", reason="bad deploy"
-        ).model_dump()),
+        ).model_dump(),
         ruled_out=["network policy block"],
         status="complete",
         input_tokens=500,
@@ -96,11 +95,8 @@ def test_format_embed_truncates_description_to_discord_limit() -> None:
 
 
 def test_format_embed_truncates_field_values_to_discord_limit() -> None:
-    import json
     embed = format_embed(
-        make_finding(
-            suggested_fix=json.dumps(ManualAction(type="manual", reason="x" * 5000).model_dump())
-        )
+        make_finding(suggested_fix=ManualAction(type="manual", reason="x" * 5000).model_dump())
     )
     fix_field = next(f for f in _fields(embed) if f["name"] == "Suggested fix")
     assert len(fix_field["value"]) <= 1024

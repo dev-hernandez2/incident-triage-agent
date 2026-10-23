@@ -76,7 +76,7 @@ def test_finding_row_round_trips_with_jsonb_fields() -> None:
         confidence="high",
         evidence=[{"tool_call_id": "abc", "detail": "pod event"}],
         affected_services=["cartservice"],
-        suggested_fix="set REDIS_ADDR",
+        suggested_fix={"type": "manual", "reason": "set REDIS_ADDR"},
         ruled_out=[],
         status="complete",
         input_tokens=100,
@@ -90,3 +90,36 @@ def test_finding_row_round_trips_with_jsonb_fields() -> None:
     assert row.evidence == [{"tool_call_id": "abc", "detail": "pod event"}]
     assert row.posted_at is None
     assert row.cost_usd == Decimal("0.01")
+
+
+def test_finding_suggested_fix_accepts_structured_action() -> None:
+    session = make_session()
+    incident = Incident(
+        fingerprint="fp-1", alertname="PodCrashLooping", labels={}, status="received"
+    )
+    session.add(incident)
+    session.flush()
+
+    finding = Finding(
+        incident_id=incident.id,
+        summary="s",
+        root_cause="r",
+        confidence="high",
+        evidence=[],
+        affected_services=[],
+        suggested_fix={"type": "rollback", "deployment": "cartservice", "reason": "bad deploy"},
+        ruled_out=[],
+        status="complete",
+        input_tokens=1,
+        output_tokens=1,
+        cost_usd=Decimal("0.01"),
+    )
+    session.add(finding)
+    session.flush()
+    session.refresh(finding)
+
+    assert finding.suggested_fix == {
+        "type": "rollback",
+        "deployment": "cartservice",
+        "reason": "bad deploy",
+    }

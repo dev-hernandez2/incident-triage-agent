@@ -1,8 +1,6 @@
 """Pure formatting of a Finding row into a Discord embed dict (no discord.py import,
 so this is testable without a live client)."""
 
-import json
-
 from db.models import Finding
 
 _CONFIDENCE_COLORS = {
@@ -25,9 +23,6 @@ def _truncate(text: str, limit: int) -> str:
 
 
 def _render_suggested_fix(fix: object) -> str:
-    # fix is stored as a JSON string in the database
-    if isinstance(fix, str):
-        fix = json.loads(fix)
     assert isinstance(fix, dict)
     fix_type = fix["type"]
     reason = fix["reason"]

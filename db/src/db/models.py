@@ -63,7 +63,7 @@ class Finding(Base):
     confidence: Mapped[str] = mapped_column(Text)
     evidence: Mapped[list[dict[str, object]]] = mapped_column(JSONB)
     affected_services: Mapped[list[str]] = mapped_column(JSONB)
-    suggested_fix: Mapped[str] = mapped_column(Text)
+    suggested_fix: Mapped[dict[str, object]] = mapped_column(JSONB)
     ruled_out: Mapped[list[str]] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(Text)
     input_tokens: Mapped[int] = mapped_column(Integer)

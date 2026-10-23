@@ -1,6 +1,5 @@
 """Persists a validated Findings object and its cost into the findings table."""
 
-import json
 from decimal import Decimal
 
 from db.models import Finding, Incident
@@ -20,7 +19,7 @@ def save_finding(
         confidence=findings.confidence,
         evidence=[e.model_dump() for e in findings.evidence],
         affected_services=findings.affected_services,
-        suggested_fix=json.dumps(findings.suggested_fix.model_dump()),
+        suggested_fix=findings.suggested_fix.model_dump(),
         ruled_out=findings.ruled_out,
         status=findings.status,
         input_tokens=usage.input_tokens,

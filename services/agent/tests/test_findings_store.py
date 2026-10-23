@@ -49,7 +49,7 @@ def test_save_finding_persists_all_fields() -> None:
     assert fetched.incident_id == incident.id
     assert fetched.root_cause == "missing REDIS_ADDR"
     assert fetched.evidence == [{"tool_call_id": "abc", "detail": "pod event"}]
-    assert fetched.suggested_fix == '{"type": "manual", "reason": "set REDIS_ADDR"}'
+    assert fetched.suggested_fix == {"type": "manual", "reason": "set REDIS_ADDR"}
     assert fetched.input_tokens == 100
     assert fetched.output_tokens == 50
     assert fetched.cost_usd == Decimal("0.0123")
