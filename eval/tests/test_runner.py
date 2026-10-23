@@ -178,7 +178,8 @@ def test_run_all_stops_when_budget_exceeded(
                 text=None,
                 tool_calls=[ToolCallRequest(id="c1", name="submit_findings", args={
                     "summary": "s", "root_cause": "unrelated cause", "confidence": "low",
-                    "evidence": [], "affected_services": [], "suggested_fix": {"type": "manual", "reason": "f"}, "ruled_out": [],
+                    "evidence": [], "affected_services": [],
+                    "suggested_fix": {"type": "manual", "reason": "f"}, "ruled_out": [],
                 })],
                 usage=Usage(input_tokens=1, output_tokens=1),
                 stop_reason="tool_use",
@@ -270,7 +271,8 @@ def test_run_all_isolates_exception_and_continues(
                 text=None,
                 tool_calls=[ToolCallRequest(id="c1", name="submit_findings", args={
                     "summary": "s", "root_cause": "unrelated cause", "confidence": "low",
-                    "evidence": [], "affected_services": [], "suggested_fix": {"type": "manual", "reason": "f"}, "ruled_out": [],
+                    "evidence": [], "affected_services": [],
+                    "suggested_fix": {"type": "manual", "reason": "f"}, "ruled_out": [],
                 })],
                 usage=Usage(input_tokens=1, output_tokens=1),
                 stop_reason="tool_use",
@@ -380,7 +382,8 @@ def test_judge_cost_is_added_to_run_result_cost(
                 text=None,
                 tool_calls=[ToolCallRequest(id="c1", name="submit_findings", args={
                     "summary": "s", "root_cause": "unrelated cause", "confidence": "low",
-                    "evidence": [], "affected_services": [], "suggested_fix": {"type": "manual", "reason": "f"}, "ruled_out": [],
+                    "evidence": [], "affected_services": [],
+                    "suggested_fix": {"type": "manual", "reason": "f"}, "ruled_out": [],
                 })],
                 usage=Usage(input_tokens=100, output_tokens=50),
                 stop_reason="tool_use",
