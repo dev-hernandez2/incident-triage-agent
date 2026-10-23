@@ -1,0 +1,8 @@
+name: dns_failure
+description: "A dependency env var is patched to a nonexistent hostname, simulating DNS resolution failure for that dependency"
+root_cause_label: "DNS resolution failure for dependency service"
+expected_fix: "restore the dependency's correct service hostname"
+fixed_service: frontend
+default_params:
+  target_env_var: CART_SERVICE_ADDR
+  bad_hostname: "cartservice.does-not-resolve.invalid:7070"
