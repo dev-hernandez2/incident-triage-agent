@@ -4,10 +4,10 @@ factory, a live Discord role checker, and OAuth2 login/callback routes."""
 import os
 
 import httpx
+from db.engine import engine_from_env
 from fastapi import HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from dashboard.api import create_app
@@ -19,9 +19,6 @@ from dashboard.auth import (
     read_session_cookie,
 )
 
-_DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql://triage:triage@localhost:5432/triage"
-)
 _GUILD_ID = os.environ["DISCORD_GUILD_ID"]
 _APPROVER_ROLE_ID = os.environ["DISCORD_APPROVER_ROLE_ID"]
 _BOT_TOKEN = os.environ["DISCORD_BOT_TOKEN"]
@@ -31,7 +28,7 @@ _OAUTH_REDIRECT_URI = os.environ["DISCORD_OAUTH_REDIRECT_URI"]
 _DASHBOARD_ORIGIN = os.environ.get("DASHBOARD_ORIGIN", "http://localhost:5173")
 _COOKIE_SECURE = os.environ.get("DASHBOARD_COOKIE_SECURE", "false").lower() == "true"
 
-_engine = create_engine(_DATABASE_URL)
+_engine = engine_from_env()
 _http_client = httpx.Client()
 
 

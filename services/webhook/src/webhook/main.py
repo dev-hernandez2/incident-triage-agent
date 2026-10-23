@@ -4,13 +4,13 @@ import os
 from functools import lru_cache
 
 from fastapi import Depends, FastAPI, HTTPException
+from obs.logging import configure_logging
 
 from webhook.kafka_producer import AlertProducer
-from webhook.logging_config import configure_logging
 from webhook.schemas import AlertmanagerWebhookPayload, to_alert_message
 
 app = FastAPI(title="triage-agent webhook")
-logger = configure_logging()
+logger = configure_logging("webhook")
 
 
 @lru_cache

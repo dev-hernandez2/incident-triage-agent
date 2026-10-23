@@ -18,6 +18,7 @@ members = [
     "triage-eval",
     "triage-executor",
     "triage-llm",
+    "triage-obs",
     "triage-webhook",
 ]
 
@@ -2097,6 +2098,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "triage-db" },
     { name = "triage-llm" },
+    { name = "triage-obs" },
 ]
 
 [package.metadata]
@@ -2107,6 +2109,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.9" },
     { name = "triage-db", editable = "db" },
     { name = "triage-llm", editable = "llm" },
+    { name = "triage-obs", editable = "obs" },
 ]
 
 [[package]]
@@ -2249,18 +2252,25 @@ requires-dist = [
 ]
 
 [[package]]
+name = "triage-obs"
+version = "0.1.0"
+source = { editable = "obs" }
+
+[[package]]
 name = "triage-webhook"
 version = "0.1.0"
 source = { editable = "services/webhook" }
 dependencies = [
     { name = "confluent-kafka" },
     { name = "fastapi" },
+    { name = "triage-obs" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "confluent-kafka", specifier = ">=2.5" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "triage-obs", editable = "obs" },
 ]
 
 [[package]]

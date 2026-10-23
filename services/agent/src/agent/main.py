@@ -8,16 +8,17 @@ import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from db.engine import engine_from_env
 from db.models import Incident
+from db.session import session_scope
 from llm.client import LLMClient
-from sqlalchemy import create_engine
+from obs.logging import configure_logging
 from sqlalchemy.orm import Session
 
 from agent.config import load_settings
 from agent.findings_store import save_finding
 from agent.incidents import upsert_incident
 from agent.investigate import investigate
-from agent.logging_config import configure_logging
 from agent.messages import parse_alert_message
 from agent.tools.base import ToolSpec
 from agent.tools.registry import build_registry
@@ -25,7 +26,7 @@ from agent.tools.registry import build_registry
 if TYPE_CHECKING:
     from confluent_kafka import Consumer
 
-logger = configure_logging()
+logger = configure_logging("agent")
 
 
 def run_investigation(
@@ -78,15 +79,8 @@ def consume_forever(
         if raw is None:
             logger.warning("skipping message with no payload")
             continue
-        session = session_factory()
-        try:
+        with session_scope(session_factory) as session:
             process_message(session, raw, tools, llm_client)
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
         consumer.commit(message=msg, asynchronous=False)
 
 
@@ -94,7 +88,6 @@ def main() -> None:
     from confluent_kafka import Consumer
 
     bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    database_url = os.environ.get("DATABASE_URL", "postgresql://triage:triage@localhost:5432/triage")
 
     consumer = Consumer(
         {
@@ -106,7 +99,7 @@ def main() -> None:
     )
     consumer.subscribe(["alerts.raw"])
 
-    engine = create_engine(database_url)
+    engine = engine_from_env()
     session_factory = lambda: Session(engine)  # noqa: E731
 
     settings = load_settings()

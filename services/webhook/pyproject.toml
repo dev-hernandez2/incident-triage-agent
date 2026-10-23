@@ -5,7 +5,11 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "confluent-kafka>=2.5",
+    "triage-obs",
 ]
+
+[tool.uv.sources]
+triage-obs = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

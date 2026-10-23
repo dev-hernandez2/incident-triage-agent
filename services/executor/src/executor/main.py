@@ -14,8 +14,9 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any, Protocol, cast
 
+from db.engine import engine_from_env
 from db.models import Action, AuditLog, Incident
-from sqlalchemy import CursorResult, create_engine, select, update
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.orm import Session
 
 from executor.discord_notify import post_outcome
@@ -166,13 +167,10 @@ def run_once(session: Session, k8s_client: K8sExecutorClientProtocol, webhook_ur
 
 
 def main() -> None:
-    database_url = os.environ.get(
-        "DATABASE_URL", "postgresql://triage:triage@localhost:5432/triage"
-    )
     webhook_url = os.environ["DISCORD_WEBHOOK_URL"]
     namespace = os.environ.get("EXECUTOR_NAMESPACE", "boutique")
 
-    engine = create_engine(database_url)
+    engine = engine_from_env()
     k8s_client = K8sExecutorClient(allowed_namespace=namespace)
 
     while True:

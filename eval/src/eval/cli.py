@@ -84,14 +84,13 @@ def main(
     fixtures: Annotated[Path, typer.Option("--fixtures")] = Path("eval/fixtures"),
     budget: Annotated[float | None, typer.Option("--budget")] = None,
 ) -> None:
-    from sqlalchemy import create_engine
+    from db.engine import engine_from_env
     from sqlalchemy.orm import Session
 
     budget_usd = Decimal(str(budget)) if budget is not None else Decimal(
         os.environ.get("EVAL_BUDGET_USD", "20")
     )
-    database_url = os.environ.get("DATABASE_URL", "postgresql://triage:triage@localhost:5432/triage")
-    engine = create_engine(database_url)
+    engine = engine_from_env()
 
     config = RunnerConfig(
         models=models.split(","),
