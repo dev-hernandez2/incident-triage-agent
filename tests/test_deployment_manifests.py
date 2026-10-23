@@ -31,3 +31,39 @@ def test_executor_deployment_uses_triage_executor_service_account_and_secret() -
     assert pod_spec["serviceAccountName"] == "triage-executor"
     container = pod_spec["containers"][0]
     assert container["envFrom"][0]["secretRef"]["name"] == "triage-secrets"
+
+
+def test_agent_service_exists_and_selects_agent_pods_on_the_metrics_port() -> None:
+    """The agent's ServiceMonitor (grafana-dashboard-agent.yaml) selects a
+    Service, not the Deployment/pods directly -- Prometheus Operator
+    discovers Services' Endpoints. This Service must exist, select the
+    Deployment's pods, and expose a port named "metrics" matching the
+    container's containerPort (9100) that the ServiceMonitor's
+    endpoints[0].port references."""
+    service = yaml.safe_load((_K8S_DIR / "service-agent.yaml").read_text())
+    deployment = yaml.safe_load((_K8S_DIR / "deployment-agent.yaml").read_text())
+
+    assert service["kind"] == "Service"
+    assert service["metadata"]["namespace"] == "triage"
+    assert service["spec"]["selector"] == deployment["spec"]["template"]["metadata"]["labels"]
+
+    ports = {p["name"]: p for p in service["spec"]["ports"]}
+    assert "metrics" in ports
+    assert ports["metrics"]["port"] == 9100
+
+    container = deployment["spec"]["template"]["spec"]["containers"][0]
+    container_port = next(p for p in container["ports"] if p["name"] == "metrics")
+    assert ports["metrics"]["targetPort"] == container_port["containerPort"]
+
+
+def test_agent_service_matches_servicemonitor_selector_and_port() -> None:
+    service = yaml.safe_load((_K8S_DIR / "service-agent.yaml").read_text())
+    docs = list(yaml.safe_load_all((_K8S_DIR / "grafana-dashboard-agent.yaml").read_text()))
+    service_monitor = next(doc for doc in docs if doc and doc["kind"] == "ServiceMonitor")
+
+    assert service["metadata"]["labels"] == service_monitor["spec"]["selector"]["matchLabels"]
+    assert service["metadata"]["namespace"] in service_monitor["spec"]["namespaceSelector"][
+        "matchNames"
+    ]
+    monitored_port_name = service_monitor["spec"]["endpoints"][0]["port"]
+    assert any(p["name"] == monitored_port_name for p in service["spec"]["ports"])
