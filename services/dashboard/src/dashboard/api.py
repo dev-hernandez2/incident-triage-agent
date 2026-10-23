@@ -8,6 +8,7 @@ from collections.abc import Callable, Iterator
 
 from bot.actions import approve_action, reject_action
 from db.models import Action, AuditLog, Finding, Incident, ToolCall
+from db.session import session_scope
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -26,15 +27,8 @@ def create_app(
     app = FastAPI()
 
     def get_session() -> Iterator[Session]:
-        session = session_factory()
-        try:
+        with session_scope(session_factory) as session:
             yield session
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
 
     @app.get("/incidents")
     def list_incidents(session: Session = Depends(get_session)) -> list[dict[str, object]]:

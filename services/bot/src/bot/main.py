@@ -9,9 +9,10 @@ import os
 from datetime import UTC, datetime
 
 import discord
+from db.engine import engine_from_env
 from db.models import Action, Finding
 from discord.ext import tasks
-from sqlalchemy import create_engine, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from bot.format import format_embed, is_executable_action
@@ -90,12 +91,11 @@ async def post_findings(
 
 
 def main() -> None:
-    database_url = os.environ.get("DATABASE_URL", "postgresql://triage:triage@localhost:5432/triage")
     channel_id = int(os.environ["DISCORD_CHANNEL_ID"])
     bot_token = os.environ["DISCORD_BOT_TOKEN"]
     approver_role_id = int(os.environ["DISCORD_APPROVER_ROLE_ID"])
 
-    engine = create_engine(database_url)
+    engine = engine_from_env()
     intents = discord.Intents.default()
     intents.members = True
     client = discord.Client(intents=intents)

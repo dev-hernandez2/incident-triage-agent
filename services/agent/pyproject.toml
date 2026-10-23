@@ -9,11 +9,13 @@ dependencies = [
     "httpx>=0.27",
     "triage-db",
     "triage-llm",
+    "triage-obs",
 ]
 
 [tool.uv.sources]
 triage-db = { workspace = true }
 triage-llm = { workspace = true }
+triage-obs = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

@@ -1,4 +1,4 @@
-"""JSON structured logging setup for the agent service, with incident_id binding."""
+"""JSON structured logging setup, shared across services."""
 
 import json
 import logging
@@ -23,8 +23,8 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(payload, default=str)
 
 
-def configure_logging() -> logging.Logger:
-    logger = logging.getLogger("agent")
+def configure_logging(service_name: str) -> logging.Logger:
+    logger = logging.getLogger(service_name)
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JSONFormatter())
