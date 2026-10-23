@@ -54,3 +54,19 @@ spec:
       to:
         - ipBlock:
             cidr: 10.0.0.0/8
+    # Kafka broker (agent's entire input path: consumes alerts.raw).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+    # Postgres (incidents/tool_calls/findings/audit_log writes).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
