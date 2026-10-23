@@ -2172,6 +2172,18 @@ requires-dist = [
 name = "triage-executor"
 version = "0.1.0"
 source = { editable = "services/executor" }
+dependencies = [
+    { name = "httpx" },
+    { name = "kubernetes" },
+    { name = "triage-db" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "kubernetes", specifier = ">=31.0" },
+    { name = "triage-db", editable = "db" },
+]
 
 [[package]]
 name = "triage-llm"
