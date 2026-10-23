@@ -1,10 +1,8 @@
 """Tests for the Incident model's table/index definition."""
 
-import uuid
 from decimal import Decimal
 
-from db.models import Base, Finding, Incident
-from sqlalchemy import create_engine, event
+from db.models import Action, AuditLog, Finding, Incident
 from sqlalchemy.orm import Session
 
 
@@ -34,19 +32,7 @@ def test_incident_has_partial_unique_index_on_fingerprint() -> None:
     assert index.dialect_options["postgresql"]["where"] is not None
 
 
-def make_session() -> Session:
-    engine = create_engine("sqlite:///:memory:")
-
-    @event.listens_for(engine, "connect")
-    def _register_gen_random_uuid(dbapi_connection, connection_record):  # type: ignore[no-untyped-def]
-        dbapi_connection.create_function("gen_random_uuid", 0, lambda: uuid.uuid4().hex)
-
-    Base.metadata.create_all(engine)
-    return Session(engine)
-
-
-def test_incident_annotations_round_trips_as_a_jsonb_dict() -> None:
-    session = make_session()
+def test_incident_annotations_round_trips_as_a_jsonb_dict(session: Session) -> None:
     incident = Incident(
         fingerprint="fp-annotations",
         alertname="BoutiquePodCrashLooping",
@@ -61,8 +47,7 @@ def test_incident_annotations_round_trips_as_a_jsonb_dict() -> None:
     assert row.annotations == {"summary": "cartservice is restarting repeatedly"}
 
 
-def test_finding_row_round_trips_with_jsonb_fields() -> None:
-    session = make_session()
+def test_finding_row_round_trips_with_jsonb_fields(session: Session) -> None:
     incident = Incident(
         fingerprint="fp1", alertname="BoutiquePodCrashLooping", labels={}, status="received"
     )
@@ -92,8 +77,7 @@ def test_finding_row_round_trips_with_jsonb_fields() -> None:
     assert row.cost_usd == Decimal("0.01")
 
 
-def test_finding_suggested_fix_accepts_structured_action() -> None:
-    session = make_session()
+def test_finding_suggested_fix_accepts_structured_action(session: Session) -> None:
     incident = Incident(
         fingerprint="fp-1", alertname="PodCrashLooping", labels={}, status="received"
     )
@@ -126,8 +110,6 @@ def test_finding_suggested_fix_accepts_structured_action() -> None:
 
 
 def test_action_lifecycle_columns(session: Session) -> None:
-    from db.models import Action
-
     incident = Incident(
         fingerprint="fp-2", alertname="PodCrashLooping", labels={}, status="received"
     )
@@ -169,8 +151,6 @@ def test_action_lifecycle_columns(session: Session) -> None:
 
 
 def test_audit_log_detail_is_jsonb(session: Session) -> None:
-    from db.models import AuditLog
-
     incident = Incident(
         fingerprint="fp-3", alertname="PodCrashLooping", labels={}, status="received"
     )
