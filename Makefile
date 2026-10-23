@@ -69,6 +69,7 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 	helm repo update bitnami
 	kubectl create namespace triage --dry-run=client -o yaml | kubectl apply -f -
 	kubectl apply -f deploy/k8s/rbac-triage-agent.yaml
+	kubectl apply -f deploy/k8s/rbac-triage-executor.yaml
 	helm upgrade --install kafka bitnami/kafka \
 		--namespace triage \
 		-f deploy/helm/kafka-values.yaml \
