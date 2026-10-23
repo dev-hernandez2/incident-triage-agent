@@ -8,6 +8,7 @@ class FakeK8sClient:
     def __init__(self, namespace: str = "boutique") -> None:
         self.namespace = namespace
         self.deployments: dict[str, dict[str, Any]] = {}
+        self.secrets: dict[str, dict[str, str]] = {}
         self.exec_calls: list[tuple[str, str, list[str]]] = []
         self.exec_responses: list[str] = []
         self.wait_calls: list[tuple[str, str, float]] = []
@@ -29,3 +30,12 @@ class FakeK8sClient:
         self, label_selector: str, container_name: str, timeout_seconds: float = 60
     ) -> None:
         self.wait_calls.append((label_selector, container_name, timeout_seconds))
+
+    def seed_secret(self, name: str, data: dict[str, str]) -> None:
+        self.secrets[name] = dict(data)
+
+    def get_secret(self, name: str) -> dict[str, str]:
+        return dict(self.secrets[name])
+
+    def patch_secret(self, name: str, data: dict[str, str]) -> None:
+        self.secrets[name] = dict(data)

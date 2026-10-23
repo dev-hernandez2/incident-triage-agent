@@ -1,0 +1,16 @@
+name: expired_tls_cert
+description: "The frontend's internal TLS Secret is replaced with one whose certificate already expired"
+root_cause_label: "expired TLS certificate on internal service"
+expected_fix: "rotate/reissue the TLS certificate"
+fixed_service: frontend
+default_params:
+  secret_name: frontend-tls
+  expired_cert_pem: |-
+    -----BEGIN CERTIFICATE-----
+    MIIBhDCCASmgAwIBAgIUEXPIREDTESTCERTIFICATEAAAAwCgYIKoZIzj0EAwIw
+    EjEQMA4GA1UEAwwHZXhwaXJlZDAeFw0yMDAxMDEwMDAwMDBaFw0yMDAyMDEwMDAw
+    MDBaMBIxEDAOBgNVBAMMB2V4cGlyZWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+    AASynthetic0000000000000000000000000000000000000000000000000000
+    0000MAoGCCqGSM49BAMCA0gAMEUCIQCTESTONLY000000000000000000000000
+    AiEAnotarealcertificatevalue000000000000000000000000000000AAAA==
+    -----END CERTIFICATE-----
