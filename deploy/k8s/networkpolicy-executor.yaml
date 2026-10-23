@@ -1,0 +1,30 @@
+# Default-deny ingress/egress for the executor pod. Narrower than the
+# agent's policy: the executor only talks to the Kubernetes API (to
+# patch Deployments in the boutique namespace) and Postgres (to poll
+# for approved actions) — it never calls an LLM API directly.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: triage-executor
+  namespace: triage
+spec:
+  podSelector:
+    matchLabels:
+      app: triage-executor
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 443
+      to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
