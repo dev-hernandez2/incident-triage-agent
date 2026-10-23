@@ -123,3 +123,69 @@ def test_finding_suggested_fix_accepts_structured_action() -> None:
         "deployment": "cartservice",
         "reason": "bad deploy",
     }
+
+
+def test_action_lifecycle_columns(session: Session) -> None:
+    from db.models import Action
+
+    incident = Incident(
+        fingerprint="fp-2", alertname="PodCrashLooping", labels={}, status="received"
+    )
+    session.add(incident)
+    session.flush()
+    finding = Finding(
+        incident_id=incident.id,
+        summary="s",
+        root_cause="r",
+        confidence="high",
+        evidence=[],
+        affected_services=[],
+        suggested_fix={"type": "rollback", "deployment": "cartservice", "reason": "bad deploy"},
+        ruled_out=[],
+        status="complete",
+        input_tokens=1,
+        output_tokens=1,
+        cost_usd=Decimal("0.01"),
+    )
+    session.add(finding)
+    session.flush()
+
+    action = Action(
+        incident_id=incident.id,
+        finding_id=finding.id,
+        type="rollback",
+        deployment="cartservice",
+        replicas=None,
+        reason="bad deploy",
+        status="pending",
+    )
+    session.add(action)
+    session.flush()
+    session.refresh(action)
+
+    assert action.status == "pending"
+    assert action.approved_by is None
+    assert action.created_at is not None
+
+
+def test_audit_log_detail_is_jsonb(session: Session) -> None:
+    from db.models import AuditLog
+
+    incident = Incident(
+        fingerprint="fp-3", alertname="PodCrashLooping", labels={}, status="received"
+    )
+    session.add(incident)
+    session.flush()
+
+    entry = AuditLog(
+        incident_id=incident.id,
+        actor="agent",
+        event_type="tool_call",
+        detail={"tool": "describe_pod", "duration_ms": 120},
+    )
+    session.add(entry)
+    session.flush()
+    session.refresh(entry)
+
+    assert entry.detail == {"tool": "describe_pod", "duration_ms": 120}
+    assert entry.created_at is not None
