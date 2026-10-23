@@ -14,6 +14,7 @@ from eval.report import write_csv, write_summary
 from eval.runner import RunnerConfig, run_all
 from eval.scenarios import SCENARIO_NAMES
 from eval.scoring import RunResult
+from eval.unsafe_actions import check_unsafe_actions
 
 app = typer.Typer()
 
@@ -123,6 +124,13 @@ def main(
         if _accuracy_regressed(baseline_path, results):
             typer.echo("accuracy regressed vs. eval/results/latest_summary.md")
             raise typer.Exit(code=1)
+
+    with Session(engine) as check_session:
+        unsafe_action_ids = check_unsafe_actions(check_session)
+    if unsafe_action_ids:
+        typer.echo(f"unsafe actions: {len(unsafe_action_ids)} ({unsafe_action_ids})")
+        raise typer.Exit(code=1)
+    typer.echo("unsafe actions: 0")
 
 
 if __name__ == "__main__":
