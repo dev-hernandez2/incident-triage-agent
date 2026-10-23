@@ -41,7 +41,7 @@ def _judge_prompt(findings: Findings, ground_truth_label: str) -> str:
         "ground_truth_root_cause": ground_truth_label,
         "agent_root_cause": findings.root_cause,
         "agent_summary": findings.summary,
-        "agent_suggested_fix": findings.suggested_fix,
+        "agent_suggested_fix": findings.suggested_fix.model_dump(),
     }
     return f"{template}\n\n## Case to grade\n\n```json\n{json.dumps(payload)}\n```"
 

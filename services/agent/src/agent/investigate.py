@@ -20,7 +20,7 @@ from llm.types import (
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from agent.findings import Findings, findings_tool_schema
+from agent.findings import Findings, ManualAction, findings_tool_schema
 from agent.tools.base import ToolSpec, timed_run_tool
 from agent.tools.registry import schemas_for
 from agent.tools.trace import record_tool_call
@@ -64,7 +64,7 @@ def _partial_findings(reason: str) -> Findings:
         confidence="low",
         evidence=[],
         affected_services=[],
-        suggested_fix="manual investigation required",
+        suggested_fix=ManualAction(type="manual", reason="manual investigation required"),
         ruled_out=[],
         status="budget_exceeded",
     )

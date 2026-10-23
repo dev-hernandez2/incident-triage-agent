@@ -52,7 +52,7 @@ VALID_SUBMIT_ARGS: dict[str, object] = {
     "confidence": "high",
     "evidence": [],  # filled in per-test with a real tool_call_id
     "affected_services": ["cartservice"],
-    "suggested_fix": "set REDIS_ADDR",
+    "suggested_fix": {"type": "manual", "reason": "set REDIS_ADDR"},
     "ruled_out": [],
 }
 

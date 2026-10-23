@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 
 import pytest
-from agent.findings import Findings
+from agent.findings import Findings, ManualAction
 from db.models import ToolCall
 from eval.scoring import (
     JudgeError,
@@ -34,7 +34,7 @@ _FINDINGS = Findings(
     confidence="high",
     evidence=[],
     affected_services=["paymentservice"],
-    suggested_fix="restore PORT to 50051",
+    suggested_fix=ManualAction(type="manual", reason="restore PORT to 50051"),
     ruled_out=[],
     status="complete",
 )

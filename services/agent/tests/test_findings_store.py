@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from agent.findings import Evidence, Findings
+from agent.findings import Evidence, Findings, ManualAction
 from agent.findings_store import save_finding
 from db.models import Base, Finding, Incident
 from llm.types import Usage
@@ -34,7 +34,7 @@ def test_save_finding_persists_all_fields() -> None:
         confidence="high",
         evidence=[Evidence(tool_call_id="abc", detail="pod event")],
         affected_services=["cartservice"],
-        suggested_fix="set REDIS_ADDR",
+        suggested_fix=ManualAction(type="manual", reason="set REDIS_ADDR"),
         ruled_out=[],
         status="complete",
     )
@@ -49,6 +49,7 @@ def test_save_finding_persists_all_fields() -> None:
     assert fetched.incident_id == incident.id
     assert fetched.root_cause == "missing REDIS_ADDR"
     assert fetched.evidence == [{"tool_call_id": "abc", "detail": "pod event"}]
+    assert fetched.suggested_fix == '{"type": "manual", "reason": "set REDIS_ADDR"}'
     assert fetched.input_tokens == 100
     assert fetched.output_tokens == 50
     assert fetched.cost_usd == Decimal("0.0123")

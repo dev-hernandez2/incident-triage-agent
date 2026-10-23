@@ -1,6 +1,8 @@
 """Pure formatting of a Finding row into a Discord embed dict (no discord.py import,
 so this is testable without a live client)."""
 
+import json
+
 from db.models import Finding
 
 _CONFIDENCE_COLORS = {
@@ -22,6 +24,22 @@ def _truncate(text: str, limit: int) -> str:
     return text[: limit - len(ellipsis)] + ellipsis
 
 
+def _render_suggested_fix(fix: object) -> str:
+    # fix is stored as a JSON string in the database
+    if isinstance(fix, str):
+        fix = json.loads(fix)
+    assert isinstance(fix, dict)
+    fix_type = fix["type"]
+    reason = fix["reason"]
+    if fix_type == "rollback":
+        return f"rollback {fix['deployment']}: {reason}"
+    if fix_type == "restart":
+        return f"restart {fix['deployment']}: {reason}"
+    if fix_type == "scale":
+        return f"scale {fix['deployment']} to {fix['replicas']} replicas: {reason}"
+    return f"manual: {reason}"
+
+
 def format_embed(finding: Finding) -> dict[str, object]:
     evidence_lines = [
         f"- {item['detail']} (`{item['tool_call_id']}`)" for item in finding.evidence[:3]
@@ -40,7 +58,7 @@ def format_embed(finding: Finding) -> dict[str, object]:
             },
             {
                 "name": "Suggested fix",
-                "value": _truncate(finding.suggested_fix, _FIELD_VALUE_MAX),
+                "value": _truncate(_render_suggested_fix(finding.suggested_fix), _FIELD_VALUE_MAX),
                 "inline": False,
             },
         ],
