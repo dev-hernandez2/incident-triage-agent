@@ -23,16 +23,20 @@ select = ["E", "F", "I", "UP"]
 python_version = "3.12"
 strict = true
 explicit_package_bases = true
-mypy_path = "$MYPY_CONFIG_FILE_DIR/services/webhook/src:$MYPY_CONFIG_FILE_DIR/services/agent/src:$MYPY_CONFIG_FILE_DIR/services/executor/src:$MYPY_CONFIG_FILE_DIR/services/bot/src:$MYPY_CONFIG_FILE_DIR/chaos/src:$MYPY_CONFIG_FILE_DIR/chaos/tests:$MYPY_CONFIG_FILE_DIR/db/src:$MYPY_CONFIG_FILE_DIR/llm/src:$MYPY_CONFIG_FILE_DIR/eval/src"
+mypy_path = "$MYPY_CONFIG_FILE_DIR/services/webhook/src:$MYPY_CONFIG_FILE_DIR/services/agent/src:$MYPY_CONFIG_FILE_DIR/services/executor/src:$MYPY_CONFIG_FILE_DIR/services/executor/tests:$MYPY_CONFIG_FILE_DIR/services/bot/src:$MYPY_CONFIG_FILE_DIR/services/dashboard/src:$MYPY_CONFIG_FILE_DIR/chaos/src:$MYPY_CONFIG_FILE_DIR/chaos/tests:$MYPY_CONFIG_FILE_DIR/db/src:$MYPY_CONFIG_FILE_DIR/llm/src:$MYPY_CONFIG_FILE_DIR/eval/src"
 
 [dependency-groups]
 dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "pytest>=8.3",
+    "pytest-asyncio>=0.24",
     "types-pyyaml>=6.0",
     "httpx>=0.27",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [build-system]
 requires = ["hatchling"]

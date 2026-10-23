@@ -14,12 +14,31 @@ _TITLE_MAX = 256
 _DESCRIPTION_MAX = 4096
 _FIELD_VALUE_MAX = 1024
 
+_EXECUTABLE_TYPES = {"rollback", "restart", "scale"}
+
+
+def is_executable_action(suggested_fix: dict[str, object]) -> bool:
+    return suggested_fix["type"] in _EXECUTABLE_TYPES
+
 
 def _truncate(text: str, limit: int) -> str:
     if len(text) <= limit:
         return text
     ellipsis = "..."
     return text[: limit - len(ellipsis)] + ellipsis
+
+
+def _render_suggested_fix(fix: object) -> str:
+    assert isinstance(fix, dict)
+    fix_type = fix["type"]
+    reason = fix["reason"]
+    if fix_type == "rollback":
+        return f"rollback {fix['deployment']}: {reason}"
+    if fix_type == "restart":
+        return f"restart {fix['deployment']}: {reason}"
+    if fix_type == "scale":
+        return f"scale {fix['deployment']} to {fix['replicas']} replicas: {reason}"
+    return f"manual: {reason}"
 
 
 def format_embed(finding: Finding) -> dict[str, object]:
@@ -40,7 +59,7 @@ def format_embed(finding: Finding) -> dict[str, object]:
             },
             {
                 "name": "Suggested fix",
-                "value": _truncate(finding.suggested_fix, _FIELD_VALUE_MAX),
+                "value": _truncate(_render_suggested_fix(finding.suggested_fix), _FIELD_VALUE_MAX),
                 "inline": False,
             },
         ],

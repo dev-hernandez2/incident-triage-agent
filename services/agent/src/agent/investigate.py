@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Protocol
 
-from db.models import Incident
+from db.models import AuditLog, Incident
 from llm.types import (
     AssistantMessage,
     CompletionResult,
@@ -20,7 +20,7 @@ from llm.types import (
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from agent.findings import Findings, findings_tool_schema
+from agent.findings import Findings, ManualAction, findings_tool_schema
 from agent.tools.base import ToolSpec, timed_run_tool
 from agent.tools.registry import schemas_for
 from agent.tools.trace import record_tool_call
@@ -64,7 +64,7 @@ def _partial_findings(reason: str) -> Findings:
         confidence="low",
         evidence=[],
         affected_services=[],
-        suggested_fix="manual investigation required",
+        suggested_fix=ManualAction(type="manual", reason="manual investigation required"),
         ruled_out=[],
         status="budget_exceeded",
     )
@@ -142,6 +142,14 @@ def investigate(
             tool_result, error, duration_ms = timed_run_tool(tool_spec, call.args)
             row = record_tool_call(
                 session, incident.id, call.name, call.args, tool_result, error, duration_ms
+            )
+            session.add(
+                AuditLog(
+                    incident_id=incident.id,
+                    actor="agent",
+                    event_type="tool_call",
+                    detail={"tool": call.name, "tool_call_id": str(row.id)},
+                )
             )
             session.flush()
             row_id = str(row.id)

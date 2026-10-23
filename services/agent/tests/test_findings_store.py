@@ -1,9 +1,9 @@
 import uuid
 from decimal import Decimal
 
-from agent.findings import Evidence, Findings
+from agent.findings import Evidence, Findings, ManualAction
 from agent.findings_store import save_finding
-from db.models import Base, Finding, Incident
+from db.models import AuditLog, Base, Finding, Incident
 from llm.types import Usage
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
@@ -34,7 +34,7 @@ def test_save_finding_persists_all_fields() -> None:
         confidence="high",
         evidence=[Evidence(tool_call_id="abc", detail="pod event")],
         affected_services=["cartservice"],
-        suggested_fix="set REDIS_ADDR",
+        suggested_fix=ManualAction(type="manual", reason="set REDIS_ADDR"),
         ruled_out=[],
         status="complete",
     )
@@ -49,7 +49,40 @@ def test_save_finding_persists_all_fields() -> None:
     assert fetched.incident_id == incident.id
     assert fetched.root_cause == "missing REDIS_ADDR"
     assert fetched.evidence == [{"tool_call_id": "abc", "detail": "pod event"}]
+    assert fetched.suggested_fix == {"type": "manual", "reason": "set REDIS_ADDR"}
     assert fetched.input_tokens == 100
     assert fetched.output_tokens == 50
     assert fetched.cost_usd == Decimal("0.0123")
     assert fetched.posted_at is None
+
+
+def test_save_finding_writes_a_finding_created_audit_log_row() -> None:
+    session = make_session()
+    incident = Incident(
+        fingerprint="fp2", alertname="BoutiquePodCrashLooping", labels={}, status="received"
+    )
+    session.add(incident)
+    session.flush()
+
+    findings = Findings(
+        summary="cartservice crash-looping",
+        root_cause="missing REDIS_ADDR",
+        confidence="high",
+        evidence=[Evidence(tool_call_id="abc", detail="pod event")],
+        affected_services=["cartservice"],
+        suggested_fix=ManualAction(type="manual", reason="set REDIS_ADDR"),
+        ruled_out=[],
+        status="complete",
+    )
+
+    row = save_finding(
+        session, incident, findings, Usage(input_tokens=100, output_tokens=50), Decimal("0.0123")
+    )
+    session.commit()
+
+    logs = session.query(AuditLog).filter_by(incident_id=incident.id).all()
+    assert len(logs) == 1
+    assert logs[0].actor == "agent"
+    assert logs[0].event_type == "finding_created"
+    assert logs[0].detail["finding_id"] == str(row.id)
+    assert logs[0].detail["confidence"] == "high"

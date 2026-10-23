@@ -58,7 +58,7 @@ class _FakeLLMClient:
             "confidence": "low",
             "evidence": [],
             "affected_services": [],
-            "suggested_fix": "stub",
+            "suggested_fix": {"type": "manual", "reason": "stub"},
             "ruled_out": [],
         }
         return CompletionResult(

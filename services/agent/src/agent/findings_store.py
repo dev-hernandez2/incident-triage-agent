@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from db.models import Finding, Incident
+from db.models import AuditLog, Finding, Incident
 from llm.types import Usage
 from sqlalchemy.orm import Session
 
@@ -19,7 +19,7 @@ def save_finding(
         confidence=findings.confidence,
         evidence=[e.model_dump() for e in findings.evidence],
         affected_services=findings.affected_services,
-        suggested_fix=findings.suggested_fix,
+        suggested_fix=findings.suggested_fix.model_dump(),
         ruled_out=findings.ruled_out,
         status=findings.status,
         input_tokens=usage.input_tokens,
@@ -27,5 +27,14 @@ def save_finding(
         cost_usd=cost_usd,
     )
     session.add(row)
+    session.flush()
+    session.add(
+        AuditLog(
+            incident_id=incident.id,
+            actor="agent",
+            event_type="finding_created",
+            detail={"finding_id": str(row.id), "confidence": findings.confidence},
+        )
+    )
     session.flush()
     return row

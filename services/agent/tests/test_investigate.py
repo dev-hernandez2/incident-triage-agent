@@ -52,7 +52,7 @@ VALID_SUBMIT_ARGS: dict[str, object] = {
     "confidence": "high",
     "evidence": [],  # filled in per-test with a real tool_call_id
     "affected_services": ["cartservice"],
-    "suggested_fix": "set REDIS_ADDR",
+    "suggested_fix": {"type": "manual", "reason": "set REDIS_ADDR"},
     "ruled_out": [],
 }
 
@@ -107,6 +107,15 @@ def test_investigate_cites_a_real_tool_call_id_in_evidence() -> None:
     assert findings.evidence[0].tool_call_id == llm_client.last_tool_call_id
     assert usage.input_tokens == 20
     assert usage.output_tokens == 10
+
+    from db.models import AuditLog
+
+    audit_rows = session.query(AuditLog).filter_by(incident_id=incident.id).all()
+    tool_call_logs = [a for a in audit_rows if a.event_type == "tool_call"]
+    assert len(tool_call_logs) == 1
+    assert tool_call_logs[0].actor == "agent"
+    assert tool_call_logs[0].detail["tool"] == "list_pods"
+    assert tool_call_logs[0].detail["tool_call_id"] == llm_client.last_tool_call_id
 
 
 def test_investigate_stops_at_step_budget_with_budget_exceeded_status() -> None:

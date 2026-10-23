@@ -63,11 +63,45 @@ class Finding(Base):
     confidence: Mapped[str] = mapped_column(Text)
     evidence: Mapped[list[dict[str, object]]] = mapped_column(JSONB)
     affected_services: Mapped[list[str]] = mapped_column(JSONB)
-    suggested_fix: Mapped[str] = mapped_column(Text)
+    suggested_fix: Mapped[dict[str, object]] = mapped_column(JSONB)
     ruled_out: Mapped[list[str]] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(Text)
     input_tokens: Mapped[int] = mapped_column(Integer)
     output_tokens: Mapped[int] = mapped_column(Integer)
     cost_usd: Mapped[Decimal] = mapped_column(Numeric(10, 4))
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Action(Base):
+    __tablename__ = "actions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    incident_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    finding_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    type: Mapped[str] = mapped_column(Text)
+    deployment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    replicas: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text)
+    approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    incident_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    actor: Mapped[str] = mapped_column(Text)
+    event_type: Mapped[str] = mapped_column(Text)
+    detail: Mapped[dict[str, object]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

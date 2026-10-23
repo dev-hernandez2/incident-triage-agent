@@ -2,7 +2,8 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from bot.format import format_embed
+from agent.findings import ManualAction, RollbackAction
+from bot.format import format_embed, is_executable_action
 from db.models import Finding
 
 
@@ -20,7 +21,9 @@ def make_finding(**overrides: object) -> Finding:
             {"tool_call_id": "a4", "detail": "a fourth piece of evidence"},
         ],
         affected_services=["cartservice"],
-        suggested_fix="kubectl set env deployment/cartservice REDIS_ADDR=redis:6379",
+        suggested_fix=RollbackAction(
+            type="rollback", deployment="cartservice", reason="bad deploy"
+        ).model_dump(),
         ruled_out=["network policy block"],
         status="complete",
         input_tokens=500,
@@ -60,6 +63,8 @@ def test_format_embed_includes_suggested_fix_and_cost() -> None:
     embed = format_embed(make_finding())
     field_names = [f["name"] for f in _fields(embed)]
     assert "Suggested fix" in field_names
+    fix_field = next(f for f in _fields(embed) if f["name"] == "Suggested fix")
+    assert "rollback cartservice: bad deploy" in fix_field["value"]
     cost_field = next(f for f in _fields(embed) if f["name"] == "Cost")
     assert "0.0045" in cost_field["value"]
 
@@ -90,6 +95,18 @@ def test_format_embed_truncates_description_to_discord_limit() -> None:
 
 
 def test_format_embed_truncates_field_values_to_discord_limit() -> None:
-    embed = format_embed(make_finding(suggested_fix="x" * 5000))
+    embed = format_embed(
+        make_finding(suggested_fix=ManualAction(type="manual", reason="x" * 5000).model_dump())
+    )
     fix_field = next(f for f in _fields(embed) if f["name"] == "Suggested fix")
     assert len(fix_field["value"]) <= 1024
+
+
+def test_is_executable_action_true_for_rollback_restart_scale() -> None:
+    assert is_executable_action({"type": "rollback", "deployment": "x", "reason": "r"})
+    assert is_executable_action({"type": "restart", "deployment": "x", "reason": "r"})
+    assert is_executable_action({"type": "scale", "deployment": "x", "replicas": 1, "reason": "r"})
+
+
+def test_is_executable_action_false_for_manual() -> None:
+    assert not is_executable_action({"type": "manual", "reason": "r"})

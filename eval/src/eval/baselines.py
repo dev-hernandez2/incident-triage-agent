@@ -2,7 +2,7 @@
 
 from typing import Any, Protocol
 
-from agent.findings import Findings
+from agent.findings import Findings, ManualAction
 from llm.types import CompletionResult, Message, Usage, UserMessage
 
 _CHANGE_REASONS = {"BackOff", "Pulled", "Scheduled", "Created", "Killing"}
@@ -23,7 +23,7 @@ def rule_based_root_cause(events: list[dict[str, Any]]) -> Findings:
         confidence="low",
         evidence=[],
         affected_services=[],
-        suggested_fix="manual investigation required",
+        suggested_fix=ManualAction(type="manual", reason="manual investigation required"),
         ruled_out=[],
         status="complete",
     )
@@ -63,7 +63,7 @@ def llm_no_tools_root_cause(
         confidence="low",
         evidence=[],
         affected_services=[],
-        suggested_fix="manual investigation required",
+        suggested_fix=ManualAction(type="manual", reason="manual investigation required"),
         ruled_out=[],
         status="complete",
     )
