@@ -13,6 +13,7 @@ from db.models import Incident
 from db.session import session_scope
 from llm.client import LLMClient
 from obs.logging import configure_logging
+from obs.metrics import start_metrics_server
 from sqlalchemy.orm import Session
 
 from agent.config import load_settings
@@ -103,6 +104,7 @@ def main() -> None:
     session_factory = lambda: Session(engine)  # noqa: E731
 
     settings = load_settings()
+    start_metrics_server(settings.metrics_port)
     tools = build_registry(settings)
     llm_client = LLMClient(
         model=settings.model,

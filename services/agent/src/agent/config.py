@@ -10,6 +10,7 @@ class Settings:
     loki_url: str
     allowed_namespaces: frozenset[str]
     model: str
+    metrics_port: int
 
 
 def load_settings() -> Settings:
@@ -19,4 +20,5 @@ def load_settings() -> Settings:
         loki_url=os.environ.get("LOKI_URL", "http://localhost:3100"),
         allowed_namespaces=frozenset(ns.strip() for ns in namespaces.split(",") if ns.strip()),
         model=os.environ.get("MODEL", "claude-haiku-5-5"),
+        metrics_port=int(os.environ.get("METRICS_PORT", "9100")),
     )

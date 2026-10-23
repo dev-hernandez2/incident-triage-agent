@@ -2,7 +2,9 @@
 name = "triage-obs"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "prometheus-client>=0.21",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -5,6 +5,7 @@ from agent.investigate import _alert_user_message, investigate
 from agent.tools.base import ToolError, ToolSpec
 from db.models import Base, Incident
 from llm.types import CompletionResult, ToolCallRequest, Usage
+from prometheus_client import REGISTRY
 from pydantic import BaseModel
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
@@ -364,6 +365,94 @@ def test_alert_user_message_includes_annotations() -> None:
 
     alert_body = message.text.split("<alert>", 1)[1].split("</alert>", 1)[0]
     assert "cartservice is restarting repeatedly" in alert_body
+
+
+def _metric_value(name: str, labels: dict[str, str]) -> float | None:
+    # prometheus_client strips a trailing "_total" from Counter family names
+    # but keeps it on the sample name, so match on sample.name directly.
+    for family in REGISTRY.collect():
+        for sample in family.samples:
+            if sample.name == name and sample.labels == labels:
+                return sample.value
+    return None
+
+
+def test_investigate_records_investigations_total_on_success() -> None:
+    session = make_session()
+    incident = make_incident(session)
+
+    class SubmitImmediatelyClient:
+        def complete(
+            self, messages: list[object], tools: list[dict[str, object]], system: str
+        ) -> CompletionResult:
+            good_args = {**VALID_SUBMIT_ARGS, "evidence": []}
+            return CompletionResult(
+                text=None,
+                tool_calls=[ToolCallRequest(id="call_1", name="submit_findings", args=good_args)],
+                usage=Usage(5, 5),
+                stop_reason="tool_use",
+            )
+
+        def cost_usd(self, usage: Usage) -> Decimal:
+            return Decimal("0.001")
+
+    before = _metric_value("investigations_total", {"outcome": "complete"}) or 0.0
+
+    findings, usage = investigate(session, incident, [ECHO_TOOL], SubmitImmediatelyClient())  # type: ignore[arg-type]
+
+    assert findings.status == "complete"
+    after = _metric_value("investigations_total", {"outcome": "complete"})
+    assert after == before + 1.0
+
+
+def test_investigate_records_tool_errors_total_on_tool_failure() -> None:
+    session = make_session()
+    incident = make_incident(session)
+
+    def failing_handler(args: BaseModel) -> str:
+        raise ToolError("namespace not allowed")
+
+    failing_tool = ToolSpec(
+        name="list_pods",
+        description="list pods",
+        input_model=EchoInput,
+        timeout_s=2.0,
+        handler=failing_handler,
+    )
+
+    class FailThenSubmitClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def complete(
+            self, messages: list[object], tools: list[dict[str, object]], system: str
+        ) -> CompletionResult:
+            self.calls += 1
+            if self.calls == 1:
+                return CompletionResult(
+                    text=None,
+                    tool_calls=[ToolCallRequest(id="call_1", name="list_pods", args={})],
+                    usage=Usage(5, 5),
+                    stop_reason="tool_use",
+                )
+            good_args = {**VALID_SUBMIT_ARGS, "evidence": []}
+            return CompletionResult(
+                text=None,
+                tool_calls=[ToolCallRequest(id="call_2", name="submit_findings", args=good_args)],
+                usage=Usage(5, 5),
+                stop_reason="tool_use",
+            )
+
+        def cost_usd(self, usage: Usage) -> Decimal:
+            return Decimal("0.001")
+
+    before = _metric_value("tool_errors_total", {"tool": "list_pods"}) or 0.0
+
+    findings, usage = investigate(session, incident, [failing_tool], FailThenSubmitClient())  # type: ignore[arg-type]
+
+    assert findings.status == "complete"
+    after = _metric_value("tool_errors_total", {"tool": "list_pods"})
+    assert after == before + 1.0
 
 
 def test_investigate_round_trips_through_the_real_anthropic_wire_protocol() -> None:

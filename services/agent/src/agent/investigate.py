@@ -4,6 +4,7 @@ docs/adr/0001-agent-framework.md.
 
 import json
 import time
+from decimal import Decimal
 from pathlib import Path
 from typing import Protocol
 
@@ -16,6 +17,13 @@ from llm.types import (
     ToolResultMessage,
     Usage,
     UserMessage,
+)
+from obs.metrics import (
+    COST_USD_TOTAL,
+    INVESTIGATION_DURATION_SECONDS,
+    INVESTIGATIONS_TOTAL,
+    TOKENS_TOTAL,
+    TOOL_ERRORS_TOTAL,
 )
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -35,7 +43,7 @@ class LLMClientProtocol(Protocol):
         self, messages: list[Message], tools: list[dict[str, object]], system: str
     ) -> CompletionResult: ...
 
-    def cost_usd(self, usage: Usage) -> object: ...
+    def cost_usd(self, usage: Usage) -> Decimal: ...
 
 
 def _load_system_prompt(prompts_dir: Path) -> str:
@@ -93,10 +101,20 @@ def investigate(
 
     start = time.monotonic()
     step_count = 0
+    llm_client_model = getattr(llm_client, "_model", "unknown")
+
+    def _finish(findings: Findings, usage: Usage) -> tuple[Findings, Usage]:
+        duration = time.monotonic() - start
+        INVESTIGATIONS_TOTAL.labels(outcome=findings.status).inc()
+        INVESTIGATION_DURATION_SECONDS.observe(duration)
+        TOKENS_TOTAL.labels(direction="input", model=llm_client_model).inc(usage.input_tokens)
+        TOKENS_TOTAL.labels(direction="output", model=llm_client_model).inc(usage.output_tokens)
+        COST_USD_TOTAL.labels(model=llm_client_model).inc(float(llm_client.cost_usd(usage)))
+        return findings, usage
 
     while True:
         if step_count >= MAX_STEPS or (time.monotonic() - start) >= MAX_WALL_CLOCK_SECONDS:
-            return _partial_findings("budget exceeded"), total_usage
+            return _finish(_partial_findings("budget exceeded"), total_usage)
 
         result = llm_client.complete(messages=messages, tools=tool_schemas, system=system_prompt)
         total_usage = Usage(
@@ -116,10 +134,10 @@ def investigate(
             known_row_ids = set(model_call_id_to_row_id.values())
             findings_or_error = _validate_submit(submit_call, known_row_ids)
             if isinstance(findings_or_error, Findings):
-                return findings_or_error, total_usage
+                return _finish(findings_or_error, total_usage)
 
             if retried_submit:
-                return (
+                return _finish(
                     _partial_findings("invalid submit_findings output after one retry"),
                     total_usage,
                 )
@@ -140,6 +158,8 @@ def investigate(
                 continue
 
             tool_result, error, duration_ms = timed_run_tool(tool_spec, call.args)
+            if error is not None:
+                TOOL_ERRORS_TOTAL.labels(tool=call.name).inc()
             row = record_tool_call(
                 session, incident.id, call.name, call.args, tool_result, error, duration_ms
             )
