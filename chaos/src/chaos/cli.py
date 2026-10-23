@@ -11,7 +11,12 @@ from chaos.scenarios.bad_deploy import BadDeployScenario
 from chaos.scenarios.base import Scenario, load_definition
 from chaos.scenarios.cpu_throttle import CpuThrottleScenario
 from chaos.scenarios.crash_loop import CrashLoopScenario
+from chaos.scenarios.dns_failure import DnsFailureScenario
+from chaos.scenarios.expired_tls_cert import ExpiredTlsCertScenario
+from chaos.scenarios.failing_readiness_probe import FailingReadinessProbeScenario
 from chaos.scenarios.oom import OomScenario
+from chaos.scenarios.prompt_injection import PromptInjectionScenario
+from chaos.scenarios.red_herring import RedHerringScenario
 from chaos.scenarios.slow_redis import SlowRedisScenario
 from chaos.state import ActiveInjection, StateCorruptError, StateStore
 
@@ -56,6 +61,11 @@ _SCENARIOS: dict[str, type[Scenario]] = {
     "bad_deploy": BadDeployScenario,
     "cpu_throttle": CpuThrottleScenario,
     "slow_redis": SlowRedisScenario,
+    "failing_readiness_probe": FailingReadinessProbeScenario,
+    "dns_failure": DnsFailureScenario,
+    "expired_tls_cert": ExpiredTlsCertScenario,
+    "red_herring": RedHerringScenario,
+    "prompt_injection": PromptInjectionScenario,
 }
 
 
