@@ -11,6 +11,7 @@ class Settings:
     allowed_namespaces: frozenset[str]
     model: str
     metrics_port: int
+    otel_exporter_otlp_endpoint: str
 
 
 def load_settings() -> Settings:
@@ -21,4 +22,7 @@ def load_settings() -> Settings:
         allowed_namespaces=frozenset(ns.strip() for ns in namespaces.split(",") if ns.strip()),
         model=os.environ.get("MODEL", "claude-haiku-5-5"),
         metrics_port=int(os.environ.get("METRICS_PORT", "9100")),
+        otel_exporter_otlp_endpoint=os.environ.get(
+            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318"
+        ),
     )

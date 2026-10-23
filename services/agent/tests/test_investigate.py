@@ -5,6 +5,10 @@ from agent.investigate import _alert_user_message, investigate
 from agent.tools.base import ToolError, ToolSpec
 from db.models import Base, Incident
 from llm.types import CompletionResult, ToolCallRequest, Usage
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from prometheus_client import REGISTRY
 from pydantic import BaseModel
 from sqlalchemy import create_engine, event
@@ -570,3 +574,76 @@ def test_investigate_round_trips_through_the_real_anthropic_wire_protocol() -> N
 
     assert findings.status == "complete"
     assert findings.root_cause == "missing REDIS_ADDR"
+
+
+def test_investigate_creates_investigate_and_tool_spans() -> None:
+    """Asserts investigate() emits the root "investigate" span, a child
+    "llm.complete" span per model call, and a "tool.<name>" span per tool
+    dispatch.
+
+    NOTE on tracer-provider global state: opentelemetry's
+    trace.set_tracer_provider() is a process-global, set-once call in the
+    real SDK (a second call is a no-op with a warning). This repo's test
+    suite has no existing conftest.py fixture that resets/stubs tracer
+    state between tests, and investigate.py resolves its module-level
+    `_tracer` via `trace.get_tracer("triage-agent")` at import time, bound
+    to whatever provider is installed at that moment. Rather than add a
+    new global fixture (risking interference with other test modules that
+    might run in the same process/import order), this test takes the
+    "get_tracer returns a live proxy" approach documented by the OTel SDK:
+    `opentelemetry.trace.get_tracer` returns a `ProxyTracer` that forwards
+    to whatever provider is currently installed, re-resolving lazily, so
+    installing our InMemorySpanExporter-backed provider via
+    set_tracer_provider() here still routes investigate()'s spans into our
+    exporter as long as this is the first (and in this suite, only) call
+    to set_tracer_provider() during the process lifetime. If another test
+    module calls set_tracer_provider() first, this call becomes a no-op
+    and this test's provider is never attached -- there is no safe
+    per-test-isolated alternative without a conftest-level reset fixture,
+    which nothing else in this file uses.
+    """
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+
+    session = make_session()
+    incident = make_incident(session)
+    list_pods_call = ToolCallRequest(id="call_1", name="list_pods", args={})
+
+    class ScriptedToolThenSubmitClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def complete(
+            self, messages: list[object], tools: list[dict[str, object]], system: str
+        ) -> CompletionResult:
+            self.calls += 1
+            if self.calls == 1:
+                return CompletionResult(
+                    text=None,
+                    tool_calls=[list_pods_call],
+                    usage=Usage(5, 5),
+                    stop_reason="tool_use",
+                )
+            good_args = {**VALID_SUBMIT_ARGS, "evidence": []}
+            return CompletionResult(
+                text=None,
+                tool_calls=[ToolCallRequest(id="call_2", name="submit_findings", args=good_args)],
+                usage=Usage(5, 5),
+                stop_reason="tool_use",
+            )
+
+        def cost_usd(self, usage: Usage) -> Decimal:
+            return Decimal("0.001")
+
+    findings, usage = investigate(
+        session, incident, [ECHO_TOOL], ScriptedToolThenSubmitClient()  # type: ignore[arg-type]
+    )
+
+    assert findings.status == "complete"
+
+    span_names = [s.name for s in exporter.get_finished_spans()]
+    assert "investigate" in span_names
+    assert "llm.complete" in span_names
+    assert any(name.startswith("tool.") for name in span_names)

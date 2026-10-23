@@ -14,6 +14,7 @@ from db.session import session_scope
 from llm.client import LLMClient
 from obs.logging import configure_logging
 from obs.metrics import start_metrics_server
+from obs.tracing import configure_tracing
 from sqlalchemy.orm import Session
 
 from agent.config import load_settings
@@ -105,6 +106,7 @@ def main() -> None:
 
     settings = load_settings()
     start_metrics_server(settings.metrics_port)
+    configure_tracing("triage-agent", settings.otel_exporter_otlp_endpoint)
     tools = build_registry(settings)
     llm_client = LLMClient(
         model=settings.model,

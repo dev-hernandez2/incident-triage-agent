@@ -24,3 +24,15 @@ def test_load_settings_defaults_metrics_port(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.delenv("METRICS_PORT", raising=False)
     settings = load_settings()
     assert settings.metrics_port == 9100
+
+
+def test_load_settings_reads_otel_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://langfuse:4318")
+    settings = load_settings()
+    assert settings.otel_exporter_otlp_endpoint == "http://langfuse:4318"
+
+
+def test_load_settings_defaults_otel_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+    settings = load_settings()
+    assert settings.otel_exporter_otlp_endpoint == "http://localhost:4318"
