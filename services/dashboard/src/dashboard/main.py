@@ -4,7 +4,7 @@ factory, a live Discord role checker, and OAuth2 login/callback routes."""
 import os
 
 import httpx
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from sqlalchemy import create_engine
@@ -29,6 +29,7 @@ _OAUTH_CLIENT_ID = os.environ["DISCORD_OAUTH_CLIENT_ID"]
 _OAUTH_CLIENT_SECRET = os.environ["DISCORD_OAUTH_CLIENT_SECRET"]
 _OAUTH_REDIRECT_URI = os.environ["DISCORD_OAUTH_REDIRECT_URI"]
 _DASHBOARD_ORIGIN = os.environ.get("DASHBOARD_ORIGIN", "http://localhost:5173")
+_COOKIE_SECURE = os.environ.get("DASHBOARD_COOKIE_SECURE", "false").lower() == "true"
 
 _engine = create_engine(_DATABASE_URL)
 _http_client = httpx.Client()
@@ -48,7 +49,7 @@ def _current_user_id_from_request(request: Request) -> str:
     cookie = request.cookies.get("session")
     user_id = read_session_cookie(cookie) if cookie else None
     if user_id is None:
-        raise PermissionError("not logged in")
+        raise HTTPException(status_code=401, detail="not logged in")
     return user_id
 
 
@@ -82,5 +83,11 @@ def callback(code: str) -> RedirectResponse:
         http_client=_http_client,
     )
     response = RedirectResponse(_DASHBOARD_ORIGIN)
-    response.set_cookie("session", create_session_cookie(user_id), httponly=True)
+    response.set_cookie(
+        "session",
+        create_session_cookie(user_id),
+        httponly=True,
+        samesite="lax",
+        secure=_COOKIE_SECURE,
+    )
     return response

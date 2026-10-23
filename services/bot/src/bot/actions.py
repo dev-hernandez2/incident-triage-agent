@@ -17,7 +17,11 @@ ApproveResult = Literal["approved", "rejected", "forbidden", "already_decided"]
 
 
 def approve_action(
-    session: Session, action: Action, approver_id: str, has_role: bool
+    session: Session,
+    action: Action,
+    approver_id: str,
+    has_role: bool,
+    actor_prefix: str = "bot",
 ) -> ApproveResult:
     if not has_role:
         return "forbidden"
@@ -30,7 +34,7 @@ def approve_action(
     session.add(
         AuditLog(
             incident_id=action.incident_id,
-            actor=f"bot:{approver_id}",
+            actor=f"{actor_prefix}:{approver_id}",
             event_type="approval",
             detail={"action_id": str(action.id), "type": action.type},
         )
@@ -40,7 +44,12 @@ def approve_action(
 
 
 def reject_action(
-    session: Session, action: Action, rejecter_id: str, reason: str, has_role: bool
+    session: Session,
+    action: Action,
+    rejecter_id: str,
+    reason: str,
+    has_role: bool,
+    actor_prefix: str = "bot",
 ) -> ApproveResult:
     if not has_role:
         return "forbidden"
@@ -52,7 +61,7 @@ def reject_action(
     session.add(
         AuditLog(
             incident_id=action.incident_id,
-            actor=f"bot:{rejecter_id}",
+            actor=f"{actor_prefix}:{rejecter_id}",
             event_type="rejection",
             detail={"action_id": str(action.id), "type": action.type, "reason": reason},
         )

@@ -4,7 +4,7 @@ there is exactly one place that enforces the approver-role rule.
 """
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 from bot.actions import approve_action, reject_action
 from db.models import Action, AuditLog, Finding, Incident, ToolCall
@@ -25,8 +25,16 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI()
 
-    def get_session() -> Session:
-        return session_factory()
+    def get_session() -> Iterator[Session]:
+        session = session_factory()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     @app.get("/incidents")
     def list_incidents(session: Session = Depends(get_session)) -> list[dict[str, object]]:
@@ -112,7 +120,9 @@ def create_app(
             raise HTTPException(status_code=404, detail="action not found")
         user_id = current_user_id(request)
         has_role = role_checker(user_id)
-        result = approve_action(session, action, approver_id=user_id, has_role=has_role)
+        result = approve_action(
+            session, action, approver_id=user_id, has_role=has_role, actor_prefix="dashboard"
+        )
         if result == "forbidden":
             raise HTTPException(status_code=403, detail="you don't have the approver role")
         if result == "already_decided":
@@ -132,7 +142,12 @@ def create_app(
         user_id = current_user_id(request)
         has_role = role_checker(user_id)
         result = reject_action(
-            session, action, rejecter_id=user_id, reason=body.reason, has_role=has_role
+            session,
+            action,
+            rejecter_id=user_id,
+            reason=body.reason,
+            has_role=has_role,
+            actor_prefix="dashboard",
         )
         if result == "forbidden":
             raise HTTPException(status_code=403, detail="you don't have the approver role")

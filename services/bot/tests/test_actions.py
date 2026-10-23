@@ -104,3 +104,38 @@ def test_reject_action_with_role_transitions_to_rejected_with_reason(session: Se
     assert len(logs) == 1
     assert logs[0].event_type == "rejection"
     assert logs[0].detail["reason"] == "too risky"
+
+
+def test_approve_action_with_dashboard_actor_prefix_is_labeled_accordingly(
+    session: Session,
+) -> None:
+    action = _make_pending_action(session)
+
+    result = approve_action(
+        session, action, approver_id="user-1", has_role=True, actor_prefix="dashboard"
+    )
+
+    assert result == "approved"
+    logs = session.query(AuditLog).all()
+    assert len(logs) == 1
+    assert logs[0].actor == "dashboard:user-1"
+
+
+def test_reject_action_with_dashboard_actor_prefix_is_labeled_accordingly(
+    session: Session,
+) -> None:
+    action = _make_pending_action(session)
+
+    result = reject_action(
+        session,
+        action,
+        rejecter_id="user-2",
+        reason="too risky",
+        has_role=True,
+        actor_prefix="dashboard",
+    )
+
+    assert result == "rejected"
+    logs = session.query(AuditLog).all()
+    assert len(logs) == 1
+    assert logs[0].actor == "dashboard:user-2"

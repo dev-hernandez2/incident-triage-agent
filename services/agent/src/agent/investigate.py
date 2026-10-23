@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Protocol
 
-from db.models import Incident
+from db.models import AuditLog, Incident
 from llm.types import (
     AssistantMessage,
     CompletionResult,
@@ -142,6 +142,14 @@ def investigate(
             tool_result, error, duration_ms = timed_run_tool(tool_spec, call.args)
             row = record_tool_call(
                 session, incident.id, call.name, call.args, tool_result, error, duration_ms
+            )
+            session.add(
+                AuditLog(
+                    incident_id=incident.id,
+                    actor="agent",
+                    event_type="tool_call",
+                    detail={"tool": call.name, "tool_call_id": str(row.id)},
+                )
             )
             session.flush()
             row_id = str(row.id)
