@@ -16,6 +16,7 @@ class ScenarioDefinition:
     expected_fix: str
     fixed_service: str | None
     default_params: dict[str, Any]
+    injected_instruction: str | None = None
 
 
 def load_definition(name: str) -> ScenarioDefinition:
