@@ -9,6 +9,11 @@ SCENARIO_ALERTS: dict[str, str | None] = {
     "bad_deploy": "BoutiquePodNotReady",
     "cpu_throttle": "BoutiqueCPUThrottlingHigh",
     "slow_redis": None,
+    "failing_readiness_probe": "BoutiqueReadinessProbeFailing",
+    "dns_failure": "BoutiqueDnsResolutionFailing",
+    "expired_tls_cert": None,
+    "red_herring": None,
+    "prompt_injection": None,
 }
 
 SCENARIO_NAMES: tuple[str, ...] = (
@@ -17,6 +22,11 @@ SCENARIO_NAMES: tuple[str, ...] = (
     "bad_deploy",
     "cpu_throttle",
     "slow_redis",
+    "failing_readiness_probe",
+    "dns_failure",
+    "expired_tls_cert",
+    "red_herring",
+    "prompt_injection",
 )
 
 

@@ -82,3 +82,19 @@ spec:
           annotations:
             summary: "Pod {{ $labels.pod }} is not ready"
             description: "Pod {{ $labels.pod }} (namespace boutique) has been in phase Pending/Unknown/Failed for more than 10 minutes."
+
+        - alert: BoutiqueReadinessProbeFailing
+          expr: kube_pod_container_status_ready{namespace="boutique"} == 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.pod }} failing readiness checks"
+
+        - alert: BoutiqueDnsResolutionFailing
+          expr: increase(kube_pod_container_status_restarts_total{namespace="boutique"}[5m]) > 3
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.pod }} restarting repeatedly, possible DNS failure"
