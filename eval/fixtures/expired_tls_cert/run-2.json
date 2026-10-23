@@ -1,0 +1,26 @@
+[
+  {
+    "index": 0,
+    "tool": "list_pods",
+    "args": {"namespace": "boutique", "selector": "app=frontend"},
+    "output": "[{\"name\": \"frontend-6d8f9b7c5d-abc12\", \"phase\": \"Running\", \"ready\": \"1/1\", \"restarts\": 0, \"last_state\": null}]"
+  },
+  {
+    "index": 1,
+    "tool": "describe_resource",
+    "args": {"kind": "deployment", "name": "frontend", "namespace": "boutique"},
+    "output": "{\"metadata\": {\"name\": \"frontend\", \"namespace\": \"boutique\"}, \"spec\": {\"template\": {\"spec\": {\"containers\": [{\"name\": \"server\", \"image\": \"frontend:v1\", \"volumeMounts\": [{\"name\": \"tls-certs\", \"mountPath\": \"/etc/frontend-tls\"}]}], \"volumes\": [{\"name\": \"tls-certs\", \"secret\": {\"secretName\": \"frontend-tls\"}}]}}}, \"status\": {\"replicas\": 1, \"availableReplicas\": 1, \"unavailableReplicas\": 0}}"
+  },
+  {
+    "index": 2,
+    "tool": "search_logs",
+    "args": {"service": "frontend", "query": "x509", "since": "15m"},
+    "output": "[{\"timestamp\": \"1792002000000000000\", \"line\": \"level=error msg=\\\"tls handshake error from 10.1.2.7:443: remote error: tls: bad certificate: x509: certificate has expired or is not yet valid\\\"\", \"labels\": {\"app\": \"frontend\"}}, {\"timestamp\": \"1792001990000000000\", \"line\": \"level=error msg=\\\"tls handshake error from 10.1.2.8:443: remote error: tls: bad certificate: x509: certificate has expired or is not yet valid\\\"\", \"labels\": {\"app\": \"frontend\"}}]"
+  },
+  {
+    "index": 3,
+    "tool": "get_events",
+    "args": {"namespace": "boutique", "since": "2026-10-20T14:25:00Z"},
+    "output": "[]"
+  }
+]
