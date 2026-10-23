@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from agent.findings import ManualAction, RollbackAction
-from bot.format import format_embed
+from bot.format import format_embed, is_executable_action
 from db.models import Finding
 
 
@@ -100,3 +100,13 @@ def test_format_embed_truncates_field_values_to_discord_limit() -> None:
     )
     fix_field = next(f for f in _fields(embed) if f["name"] == "Suggested fix")
     assert len(fix_field["value"]) <= 1024
+
+
+def test_is_executable_action_true_for_rollback_restart_scale() -> None:
+    assert is_executable_action({"type": "rollback", "deployment": "x", "reason": "r"})
+    assert is_executable_action({"type": "restart", "deployment": "x", "reason": "r"})
+    assert is_executable_action({"type": "scale", "deployment": "x", "replicas": 1, "reason": "r"})
+
+
+def test_is_executable_action_false_for_manual() -> None:
+    assert not is_executable_action({"type": "manual", "reason": "r"})

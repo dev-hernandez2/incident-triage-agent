@@ -14,6 +14,12 @@ _TITLE_MAX = 256
 _DESCRIPTION_MAX = 4096
 _FIELD_VALUE_MAX = 1024
 
+_EXECUTABLE_TYPES = {"rollback", "restart", "scale"}
+
+
+def is_executable_action(suggested_fix: dict[str, object]) -> bool:
+    return suggested_fix["type"] in _EXECUTABLE_TYPES
+
 
 def _truncate(text: str, limit: int) -> str:
     if len(text) <= limit:

@@ -1,6 +1,7 @@
 """Discord bot: polls the findings table and posts an embed for each new row.
 
-No approve/deny buttons yet — that's a later step.
+Executable findings (rollback/restart/scale) get an attached Approve/Reject
+button view backed by bot.actions; manual findings are posted without buttons.
 """
 
 import logging
@@ -8,12 +9,13 @@ import os
 from datetime import UTC, datetime
 
 import discord
-from db.models import Finding
+from db.models import Action, Finding
 from discord.ext import tasks
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from bot.format import format_embed
+from bot.format import format_embed, is_executable_action
+from bot.views import RemediationView
 
 POLL_INTERVAL_SECONDS = 5.0
 
@@ -33,6 +35,22 @@ def mark_posted(session: Session, finding: Finding) -> None:
     session.flush()
 
 
+def _insert_pending_action(session: Session, finding: Finding) -> Action:
+    fix = finding.suggested_fix
+    action = Action(
+        incident_id=finding.incident_id,
+        finding_id=finding.id,
+        type=fix["type"],
+        deployment=fix.get("deployment"),
+        replicas=fix.get("replicas"),
+        reason=fix["reason"],
+        status="pending",
+    )
+    session.add(action)
+    session.flush()
+    return action
+
+
 def _to_discord_embed(data: dict[str, object]) -> discord.Embed:
     color = data["color"]
     assert isinstance(color, int)
@@ -44,14 +62,26 @@ def _to_discord_embed(data: dict[str, object]) -> discord.Embed:
     return embed
 
 
-async def post_findings(session: Session, channel: discord.abc.Messageable) -> None:
+async def post_findings(
+    session: Session, channel: discord.abc.Messageable, approver_role_id: int
+) -> None:
     """Posts every unposted finding, skipping (and logging) any row whose send fails
     so one bad embed can't take the whole polling task down.
     """
     for finding in fetch_unposted_findings(session):
         try:
             embed = _to_discord_embed(format_embed(finding))
-            await channel.send(embed=embed)
+            if is_executable_action(finding.suggested_fix):
+                action = _insert_pending_action(session, finding)
+                view = RemediationView(
+                    session=session,
+                    action_id=str(action.id),
+                    approver_role_id=approver_role_id,
+                    approver=lambda _: None,
+                )
+                await channel.send(embed=embed, view=view)
+            else:
+                await channel.send(embed=embed)
             mark_posted(session, finding)
             session.commit()
         except Exception:
@@ -63,9 +93,11 @@ def main() -> None:
     database_url = os.environ.get("DATABASE_URL", "postgresql://triage:triage@localhost:5432/triage")
     channel_id = int(os.environ["DISCORD_CHANNEL_ID"])
     bot_token = os.environ["DISCORD_BOT_TOKEN"]
+    approver_role_id = int(os.environ["DISCORD_APPROVER_ROLE_ID"])
 
     engine = create_engine(database_url)
     intents = discord.Intents.default()
+    intents.members = True
     client = discord.Client(intents=intents)
 
     @tasks.loop(seconds=POLL_INTERVAL_SECONDS)
@@ -75,7 +107,7 @@ def main() -> None:
             return
         session = Session(engine)
         try:
-            await post_findings(session, channel)
+            await post_findings(session, channel, approver_role_id)
         finally:
             session.close()
 

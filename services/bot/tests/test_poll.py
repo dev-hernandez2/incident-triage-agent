@@ -73,7 +73,7 @@ class _FakeChannel:
         self._fail_on = fail_on or set()
         self._calls = 0
 
-    async def send(self, embed: object) -> None:
+    async def send(self, embed: object, view: object = None) -> None:
         call_index = self._calls
         self._calls += 1
         if call_index in self._fail_on:
@@ -88,7 +88,7 @@ def test_post_findings_marks_every_row_posted() -> None:
     session.commit()
     channel = _FakeChannel()
 
-    asyncio.run(post_findings(session, channel))  # type: ignore[arg-type]
+    asyncio.run(post_findings(session, channel, approver_role_id=42))  # type: ignore[arg-type]
 
     assert len(channel.sent) == 2
     assert fetch_unposted_findings(session) == []
@@ -101,7 +101,7 @@ def test_post_findings_skips_a_failing_row_and_still_posts_the_rest() -> None:
     session.commit()
     channel = _FakeChannel(fail_on={0})
 
-    asyncio.run(post_findings(session, channel))  # type: ignore[arg-type]
+    asyncio.run(post_findings(session, channel, approver_role_id=42))  # type: ignore[arg-type]
 
     assert len(channel.sent) == 1
     assert len(fetch_unposted_findings(session)) == 1
