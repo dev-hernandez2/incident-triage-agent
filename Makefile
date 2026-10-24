@@ -68,8 +68,6 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 	helm repo add bitnami https://charts.bitnami.com/bitnami >/dev/null 2>&1 || true
 	helm repo update bitnami
 	kubectl create namespace triage --dry-run=client -o yaml | kubectl apply -f -
-	kubectl apply -f deploy/k8s/rbac-triage-agent.yaml
-	kubectl apply -f deploy/k8s/rbac-triage-executor.yaml
 	helm upgrade --install kafka bitnami/kafka \
 		--namespace triage \
 		-f deploy/helm/kafka-values.yaml \
@@ -89,6 +87,10 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 		RC=$$?; \
 		kill $$PG_PID; \
 		exit $$RC
+	helm upgrade --install triage-agent deploy/helm/triage-agent \
+		--namespace triage \
+		-f deploy/helm/triage-agent-values.yaml \
+		--wait --timeout 5m
 	@echo ""
 	@echo "Online Boutique and monitoring stack are up."
 	@echo "Grafana:    http://localhost:3000  (run: kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80)"
@@ -99,7 +101,9 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 	@echo "Postgres:   kubectl port-forward -n triage svc/postgres-postgresql 5432:5432"
 	@echo "Gitea:      http://localhost:3001  (run: kubectl port-forward -n gitops svc/gitea-http 3001:3000, login chaos-admin/chaos-admin-password)"
 	@echo "Argo CD:    kubectl port-forward -n gitops svc/argocd-server 8081:443 (login: admin / $$(kubectl -n gitops get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d))"
-	@echo "Run webhook/agent locally against those forwarded ports (see .env.example)."
+	@echo "triage-agent app services deployed via Helm (deploy/helm/triage-agent)."
+	@echo "Create the triage-secrets Secret from .env before they'll start successfully:"
+	@echo "  kubectl create secret generic triage-secrets -n triage --from-env-file=.env"
 
 down: ## Tear down the kind cluster
 	kind delete cluster --name $(CLUSTER_NAME)
