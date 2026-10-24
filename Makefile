@@ -89,8 +89,7 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 		exit $$RC
 	helm upgrade --install triage-agent deploy/helm/triage-agent \
 		--namespace triage \
-		-f deploy/helm/triage-agent-values.yaml \
-		--wait --timeout 5m
+		-f deploy/helm/triage-agent-values.yaml
 	@echo ""
 	@echo "Online Boutique and monitoring stack are up."
 	@echo "Grafana:    http://localhost:3000  (run: kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80)"
@@ -104,6 +103,10 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 	@echo "triage-agent app services deployed via Helm (deploy/helm/triage-agent)."
 	@echo "Create the triage-secrets Secret from .env before they'll start successfully:"
 	@echo "  kubectl create secret generic triage-secrets -n triage --from-env-file=.env"
+	@echo "Build and load the five service images before those pods will start (not done by 'make up'):"
+	@echo "  docker build -f deploy/<service>/Dockerfile -t triage-<service>:local ."
+	@echo "  kind load docker-image triage-<service>:local --name triage"
+	@echo "  ...for <service> in webhook, agent, bot, executor, dashboard."
 
 down: ## Tear down the kind cluster
 	kind delete cluster --name $(CLUSTER_NAME)
