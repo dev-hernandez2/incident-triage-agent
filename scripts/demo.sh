@@ -12,6 +12,13 @@ cleanup() {
   for pid in "${PIDS[@]:-}"; do
     kill "$pid" 2>/dev/null || true
   done
+  for pid in "${PIDS[@]:-}"; do
+    for _ in $(seq 1 5); do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 1
+    done
+    kill -9 "$pid" 2>/dev/null || true
+  done
   wait 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
