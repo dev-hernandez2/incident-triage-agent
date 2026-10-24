@@ -90,7 +90,22 @@ def test_list_incidents_returns_seeded_incident(session: Session, engine: Engine
     response = client.get("/incidents")
 
     assert response.status_code == 200
-    assert len(response.json()) == 1
+    body = response.json()
+    assert len(body) == 1
+    assert "created_at" in body[0]
+
+
+def test_get_incident_includes_finding_confidence(session: Session, engine: Engine) -> None:
+    _seed_pending_action(session)
+    client = _client_with_role(engine, has_role=True)
+
+    incident = session.query(Incident).one()
+    response = client.get(f"/incidents/{incident.id}")
+
+    assert response.status_code == 200
+    findings = response.json()["findings"]
+    assert len(findings) == 1
+    assert findings[0]["confidence"] == "high"
 
 
 def test_approve_without_role_is_forbidden(session: Session, engine: Engine) -> None:

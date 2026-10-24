@@ -2,6 +2,7 @@ export interface Incident {
   id: string;
   alertname: string;
   status: string;
+  created_at: string;
 }
 
 export interface TimelineEntry {
@@ -14,6 +15,7 @@ export interface FindingSummary {
   id: string;
   summary: string;
   root_cause: string;
+  confidence: string;
   evidence: unknown[];
   suggested_fix: { type: string; [key: string]: unknown };
 }

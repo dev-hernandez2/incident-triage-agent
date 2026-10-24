@@ -34,7 +34,12 @@ def create_app(
     def list_incidents(session: Session = Depends(get_session)) -> list[dict[str, object]]:
         incidents = session.scalars(select(Incident).order_by(Incident.created_at.desc())).all()
         return [
-            {"id": str(i.id), "alertname": i.alertname, "status": i.status}
+            {
+                "id": str(i.id),
+                "alertname": i.alertname,
+                "status": i.status,
+                "created_at": i.created_at.isoformat(),
+            }
             for i in incidents
         ]
 
@@ -85,6 +90,7 @@ def create_app(
                     "id": str(f.id),
                     "summary": f.summary,
                     "root_cause": f.root_cause,
+                    "confidence": f.confidence,
                     "evidence": f.evidence,
                     "suggested_fix": f.suggested_fix,
                 }

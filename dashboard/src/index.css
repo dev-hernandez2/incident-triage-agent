@@ -109,3 +109,247 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.page {
+  text-align: left;
+  padding: 0 32px 48px;
+  flex: 1;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.empty-state,
+.loading-state {
+  color: var(--text);
+  padding: 48px 0;
+  text-align: center;
+}
+
+.error-state {
+  color: #dc2626;
+  padding: 16px;
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.incident-list {
+  list-style: none;
+  margin: 24px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.incident-card {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s ease;
+}
+
+.incident-card:hover {
+  border-color: var(--accent-border);
+  text-decoration: none;
+}
+
+.incident-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.incident-card-title {
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.incident-card-time {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 4px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.badge-gray {
+  background: var(--code-bg);
+  color: var(--text);
+}
+.badge-blue {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+.badge-green {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+.badge-red {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+.badge-amber {
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+}
+
+@media (prefers-color-scheme: dark) {
+  .badge-blue {
+    color: #60a5fa;
+  }
+  .badge-green {
+    color: #4ade80;
+  }
+  .badge-red {
+    color: #f87171;
+  }
+  .badge-amber {
+    color: #fbbf24;
+  }
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+
+.card-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.card-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.fix-block {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  font-size: 15px;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid var(--border);
+}
+
+.timeline li {
+  position: relative;
+  padding: 0 0 16px 20px;
+  font-size: 15px;
+}
+
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.timeline-time {
+  color: var(--text);
+  font-size: 13px;
+  display: block;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-h);
+}
+
+.btn-approve {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: white;
+}
+.btn-approve:hover {
+  background: #15803d;
+}
+
+.btn-reject {
+  background: transparent;
+  border-color: #dc2626;
+  color: #dc2626;
+}
+.btn-reject:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.reject-form {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reject-form textarea {
+  font: inherit;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  resize: vertical;
+  min-height: 60px;
+}
