@@ -1,0 +1,7 @@
+name: failing_readiness_probe
+description: "Readiness probe path patched to a nonexistent endpoint causes the pod to never become Ready"
+root_cause_label: "readiness probe misconfigured (invalid HTTP path)"
+expected_fix: "restore the readiness probe's original HTTP path"
+fixed_service: null
+default_params:
+  bad_probe_path: "/this-path-does-not-exist"

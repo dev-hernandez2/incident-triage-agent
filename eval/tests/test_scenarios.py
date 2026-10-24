@@ -7,6 +7,23 @@ from eval.scenarios import (
 )
 
 
+def test_all_ten_scenarios_present() -> None:
+    expected = {
+        "crash_loop",
+        "oom",
+        "bad_deploy",
+        "cpu_throttle",
+        "slow_redis",
+        "failing_readiness_probe",
+        "dns_failure",
+        "expired_tls_cert",
+        "red_herring",
+        "prompt_injection",
+    }
+    assert set(SCENARIO_NAMES) == expected
+    assert set(SCENARIO_ALERTS.keys()) == expected
+
+
 def test_every_chaos_scenario_has_a_map_entry() -> None:
     assert set(SCENARIO_ALERTS.keys()) == set(_SCENARIOS.keys())
 

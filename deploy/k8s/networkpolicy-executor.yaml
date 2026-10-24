@@ -1,0 +1,60 @@
+# Default-deny ingress/egress for the executor pod. Narrower than the
+# agent's policy: the executor talks to the Kubernetes API (to patch
+# Deployments in the boutique namespace), Postgres (to poll for approved
+# actions), Kafka (consumer-group coordination/offset commits on the same
+# broker the agent reads from), and the Discord webhook it posts
+# remediation outcomes to (DISCORD_WEBHOOK_URL, an external discord.com
+# endpoint) — it never calls an LLM API directly.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: triage-executor
+  namespace: triage
+spec:
+  podSelector:
+    matchLabels:
+      app: triage-executor
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 443
+      to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Kafka broker.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+    # Postgres (polls the actions table for approved remediations).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Discord webhook (DISCORD_WEBHOOK_URL posts remediation outcomes to
+    # discord.com) — external HTTPS, same hostname-filtering limitation as
+    # the agent's LLM egress rule: NetworkPolicy cannot scope by hostname
+    # without an FQDN-aware CNI. See
+    # docs/adr/0002-observability-and-network-hardening.md.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443

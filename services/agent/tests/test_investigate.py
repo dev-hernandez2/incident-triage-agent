@@ -5,6 +5,11 @@ from agent.investigate import _alert_user_message, investigate
 from agent.tools.base import ToolError, ToolSpec
 from db.models import Base, Incident
 from llm.types import CompletionResult, ToolCallRequest, Usage
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from prometheus_client import REGISTRY
 from pydantic import BaseModel
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
@@ -64,6 +69,7 @@ def test_investigate_cites_a_real_tool_call_id_in_evidence() -> None:
     list_pods_call = ToolCallRequest(id="call_1", name="list_pods", args={})
 
     class ScriptedTwoStepClient:
+        model = "fake-model"
         def __init__(self) -> None:
             self.calls = 0
             self.last_tool_call_id: str | None = None
@@ -123,6 +129,7 @@ def test_investigate_stops_at_step_budget_with_budget_exceeded_status() -> None:
     incident = make_incident(session)
 
     class AlwaysToolCallClient:
+        model = "fake-model"
         def complete(
             self, messages: list[object], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -147,6 +154,7 @@ def test_investigate_retries_once_on_invalid_submit_findings_then_succeeds() -> 
     incident = make_incident(session)
 
     class InvalidThenValidClient:
+        model = "fake-model"
         def __init__(self) -> None:
             self.calls = 0
 
@@ -186,6 +194,7 @@ def test_investigate_rejects_evidence_citing_an_unknown_tool_call_id() -> None:
     incident = make_incident(session)
 
     class BadCitationThenBadCitationClient:
+        model = "fake-model"
         def complete(
             self, messages: list[object], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -225,6 +234,7 @@ def test_investigate_rejects_evidence_citing_a_tool_call_from_another_incident()
     session.commit()
 
     class CrossIncidentCitationClient:
+        model = "fake-model"
         def complete(
             self, messages: list[object], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -267,6 +277,7 @@ def test_investigate_records_failed_tool_calls_and_continues() -> None:
     )
 
     class FailThenSubmitClient:
+        model = "fake-model"
         def __init__(self) -> None:
             self.calls = 0
 
@@ -316,6 +327,7 @@ def test_investigate_treats_alert_text_as_data_not_instructions() -> None:
     session.flush()
 
     class SubmitImmediatelyClient:
+        model = "fake-model"
         def complete(
             self, messages: list[object], tools: list[dict[str, object]], system: str
         ) -> CompletionResult:
@@ -364,6 +376,132 @@ def test_alert_user_message_includes_annotations() -> None:
 
     alert_body = message.text.split("<alert>", 1)[1].split("</alert>", 1)[0]
     assert "cartservice is restarting repeatedly" in alert_body
+
+
+def _metric_value(name: str, labels: dict[str, str]) -> float | None:
+    # prometheus_client strips a trailing "_total" from Counter family names
+    # but keeps it on the sample name, so match on sample.name directly.
+    for family in REGISTRY.collect():
+        for sample in family.samples:
+            if sample.name == name and sample.labels == labels:
+                return sample.value
+    return None
+
+
+def test_investigate_records_investigations_total_on_success() -> None:
+    session = make_session()
+    incident = make_incident(session)
+
+    class SubmitImmediatelyClient:
+        model = "fake-model"
+        def complete(
+            self, messages: list[object], tools: list[dict[str, object]], system: str
+        ) -> CompletionResult:
+            good_args = {**VALID_SUBMIT_ARGS, "evidence": []}
+            return CompletionResult(
+                text=None,
+                tool_calls=[ToolCallRequest(id="call_1", name="submit_findings", args=good_args)],
+                usage=Usage(5, 5),
+                stop_reason="tool_use",
+            )
+
+        def cost_usd(self, usage: Usage) -> Decimal:
+            return Decimal("0.001")
+
+    before = _metric_value("investigations_total", {"outcome": "complete"}) or 0.0
+
+    findings, usage = investigate(session, incident, [ECHO_TOOL], SubmitImmediatelyClient())  # type: ignore[arg-type]
+
+    assert findings.status == "complete"
+    after = _metric_value("investigations_total", {"outcome": "complete"})
+    assert after == before + 1.0
+
+
+def test_investigate_labels_token_metrics_with_the_llm_client_model_not_unknown() -> None:
+    """Pins that investigate() reads llm_client.model directly rather than
+    falling back to "unknown" via getattr(llm_client, "_model", "unknown")
+    -- a silent fallback would relabel every tokens_total/cost_usd_total
+    sample to model="unknown" without any test failure."""
+    session = make_session()
+    incident = make_incident(session)
+
+    class SubmitImmediatelyClient:
+        model = "claude-haiku-5-5"
+
+        def complete(
+            self, messages: list[object], tools: list[dict[str, object]], system: str
+        ) -> CompletionResult:
+            good_args = {**VALID_SUBMIT_ARGS, "evidence": []}
+            return CompletionResult(
+                text=None,
+                tool_calls=[ToolCallRequest(id="call_1", name="submit_findings", args=good_args)],
+                usage=Usage(5, 5),
+                stop_reason="tool_use",
+            )
+
+        def cost_usd(self, usage: Usage) -> Decimal:
+            return Decimal("0.001")
+
+    before = (
+        _metric_value("tokens_total", {"direction": "input", "model": "claude-haiku-5-5"}) or 0.0
+    )
+
+    investigate(session, incident, [ECHO_TOOL], SubmitImmediatelyClient())  # type: ignore[arg-type]
+
+    after = _metric_value("tokens_total", {"direction": "input", "model": "claude-haiku-5-5"})
+    assert after == before + 5.0
+    assert _metric_value("tokens_total", {"direction": "input", "model": "unknown"}) is None
+
+
+def test_investigate_records_tool_errors_total_on_tool_failure() -> None:
+    session = make_session()
+    incident = make_incident(session)
+
+    def failing_handler(args: BaseModel) -> str:
+        raise ToolError("namespace not allowed")
+
+    failing_tool = ToolSpec(
+        name="list_pods",
+        description="list pods",
+        input_model=EchoInput,
+        timeout_s=2.0,
+        handler=failing_handler,
+    )
+
+    class FailThenSubmitClient:
+        model = "fake-model"
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def complete(
+            self, messages: list[object], tools: list[dict[str, object]], system: str
+        ) -> CompletionResult:
+            self.calls += 1
+            if self.calls == 1:
+                return CompletionResult(
+                    text=None,
+                    tool_calls=[ToolCallRequest(id="call_1", name="list_pods", args={})],
+                    usage=Usage(5, 5),
+                    stop_reason="tool_use",
+                )
+            good_args = {**VALID_SUBMIT_ARGS, "evidence": []}
+            return CompletionResult(
+                text=None,
+                tool_calls=[ToolCallRequest(id="call_2", name="submit_findings", args=good_args)],
+                usage=Usage(5, 5),
+                stop_reason="tool_use",
+            )
+
+        def cost_usd(self, usage: Usage) -> Decimal:
+            return Decimal("0.001")
+
+    before = _metric_value("tool_errors_total", {"tool": "list_pods"}) or 0.0
+
+    findings, usage = investigate(session, incident, [failing_tool], FailThenSubmitClient())  # type: ignore[arg-type]
+
+    assert findings.status == "complete"
+    after = _metric_value("tool_errors_total", {"tool": "list_pods"})
+    assert after == before + 1.0
 
 
 def test_investigate_round_trips_through_the_real_anthropic_wire_protocol() -> None:
@@ -481,3 +619,77 @@ def test_investigate_round_trips_through_the_real_anthropic_wire_protocol() -> N
 
     assert findings.status == "complete"
     assert findings.root_cause == "missing REDIS_ADDR"
+
+
+def test_investigate_creates_investigate_and_tool_spans() -> None:
+    """Asserts investigate() emits the root "investigate" span, a child
+    "llm.complete" span per model call, and a "tool.<name>" span per tool
+    dispatch.
+
+    NOTE on tracer-provider global state: opentelemetry's
+    trace.set_tracer_provider() is a process-global, set-once call in the
+    real SDK (a second call is a no-op with a warning). This repo's test
+    suite has no existing conftest.py fixture that resets/stubs tracer
+    state between tests, and investigate.py resolves its module-level
+    `_tracer` via `trace.get_tracer("triage-agent")` at import time, bound
+    to whatever provider is installed at that moment. Rather than add a
+    new global fixture (risking interference with other test modules that
+    might run in the same process/import order), this test takes the
+    "get_tracer returns a live proxy" approach documented by the OTel SDK:
+    `opentelemetry.trace.get_tracer` returns a `ProxyTracer` that forwards
+    to whatever provider is currently installed, re-resolving lazily, so
+    installing our InMemorySpanExporter-backed provider via
+    set_tracer_provider() here still routes investigate()'s spans into our
+    exporter as long as this is the first (and in this suite, only) call
+    to set_tracer_provider() during the process lifetime. If another test
+    module calls set_tracer_provider() first, this call becomes a no-op
+    and this test's provider is never attached -- there is no safe
+    per-test-isolated alternative without a conftest-level reset fixture,
+    which nothing else in this file uses.
+    """
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+
+    session = make_session()
+    incident = make_incident(session)
+    list_pods_call = ToolCallRequest(id="call_1", name="list_pods", args={})
+
+    class ScriptedToolThenSubmitClient:
+        model = "fake-model"
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def complete(
+            self, messages: list[object], tools: list[dict[str, object]], system: str
+        ) -> CompletionResult:
+            self.calls += 1
+            if self.calls == 1:
+                return CompletionResult(
+                    text=None,
+                    tool_calls=[list_pods_call],
+                    usage=Usage(5, 5),
+                    stop_reason="tool_use",
+                )
+            good_args = {**VALID_SUBMIT_ARGS, "evidence": []}
+            return CompletionResult(
+                text=None,
+                tool_calls=[ToolCallRequest(id="call_2", name="submit_findings", args=good_args)],
+                usage=Usage(5, 5),
+                stop_reason="tool_use",
+            )
+
+        def cost_usd(self, usage: Usage) -> Decimal:
+            return Decimal("0.001")
+
+    findings, usage = investigate(
+        session, incident, [ECHO_TOOL], ScriptedToolThenSubmitClient()  # type: ignore[arg-type]
+    )
+
+    assert findings.status == "complete"
+
+    span_names = [s.name for s in exporter.get_finished_spans()]
+    assert "investigate" in span_names
+    assert "llm.complete" in span_names
+    assert any(name.startswith("tool.") for name in span_names)

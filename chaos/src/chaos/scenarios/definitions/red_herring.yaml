@@ -1,0 +1,8 @@
+name: red_herring
+description: "checkoutservice crash-loops (bad PORT) while frontend simultaneously shows elevated restarts as a downstream symptom, not an independent cause"
+root_cause_label: "bad configuration (invalid PORT env var) on checkoutservice"
+expected_fix: "restore checkoutservice's PORT to its original numeric value"
+fixed_service: checkoutservice
+default_params:
+  bad_port_value: "not-a-port"
+  symptom_restart_count: 5

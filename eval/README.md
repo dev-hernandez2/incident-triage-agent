@@ -38,6 +38,19 @@ rows the same way the production agent does); default is
   (in the same PR that changes the prompt/model and intentionally shifts
   accuracy) rather than overwriting it from a routine run.
 
+## Synthetic fixtures
+
+`cpu_throttle`, `slow_redis`, `failing_readiness_probe`, `dns_failure`,
+`expired_tls_cert`, `red_herring`, and `prompt_injection` ship
+hand-authored synthetic fixtures, not live recordings from a real
+cluster (unlike `crash_loop`/`oom`/`bad_deploy`, which were recorded via
+`eval run` against a live kind cluster). They're constructed to tell a
+plausible, internally consistent tool-call story matching each
+scenario's ground truth, but have not been validated against real
+cluster output. Treat eval results on these 7 scenarios as a check on
+the agent's reasoning given a fixed evidence trail, not as a live
+reproduction.
+
 ## CI
 
 `.github/workflows/ci.yml`'s `eval-smoke` job replays the 3 committed

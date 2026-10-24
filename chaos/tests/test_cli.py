@@ -231,3 +231,14 @@ def test_inject_records_state_before_mutating_the_cluster(tmp_path: Path) -> Non
     # the cluster must not have been mutated if the state couldn't be recorded
     unmutated = fake.deployments["paymentservice"]["containers"][0]
     assert unmutated == real_containers("paymentservice")[0]
+
+
+def test_list_includes_all_ten_scenarios() -> None:
+    result = runner.invoke(app, ["list"])
+    assert result.exit_code == 0
+    for name in (
+        "crash_loop", "oom", "bad_deploy", "cpu_throttle", "slow_redis",
+        "failing_readiness_probe", "dns_failure", "expired_tls_cert",
+        "red_herring", "prompt_injection",
+    ):
+        assert name in result.stdout

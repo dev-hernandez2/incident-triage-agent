@@ -38,3 +38,7 @@ class LLMClient:
 
     def cost_usd(self, usage: Usage) -> Decimal:
         return cost_usd(usage, self._model)
+
+    @property
+    def model(self) -> str:
+        return self._model

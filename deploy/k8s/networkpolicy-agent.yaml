@@ -1,0 +1,72 @@
+# Default-deny ingress/egress for the agent pod, with explicit egress
+# allows to every destination the agent legitimately needs. The LLM API
+# egress rule (0.0.0.0/0:443) is broader than ideal: NetworkPolicy
+# cannot filter by hostname (api.anthropic.com / api.openai.com)
+# without an FQDN-aware CNI such as Cilium, which this kind cluster
+# does not run. See docs/adr/0002-observability-and-network-hardening.md
+# for the full rationale; this is a known, accepted limitation, not an
+# oversight.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: triage-agent
+  namespace: triage
+spec:
+  podSelector:
+    matchLabels:
+      app: triage-agent
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 3100
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gitops
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - ports:
+        - protocol: TCP
+          port: 443
+      to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+    # Kafka broker (agent's entire input path: consumes alerts.raw).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+    # Postgres (incidents/tool_calls/findings/audit_log writes).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
