@@ -27,6 +27,8 @@ def _render() -> list[dict[str, Any]]:
             "template",
             "test-release",
             str(_CHART_DIR),
+            "--namespace",
+            "triage",
             "--set",
             "secrets.CHANGE_ME=CHANGE_ME",
         ],
