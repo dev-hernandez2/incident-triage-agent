@@ -8,9 +8,6 @@ models:
   cheap: claude-haiku-5-5
   tier: cheap
 
-budget:
-  monthlyUsd: 50
-
 image:
   repository: triage
   tag: latest
