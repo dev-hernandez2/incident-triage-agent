@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-agent
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Release.Name }}-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-agent
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-agent
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.metricsPort }}"
+    spec:
+      serviceAccountName: {{ .Release.Name }}-agent
+      containers:
+        - name: agent
+          image: "{{ .Values.image.repository }}-agent:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.metricsPort }}
+          envFrom:
+            - secretRef:
+                name: {{ include "triage-agent.secretName" . }}
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.kafka.bootstrapServers | quote }}
+            - name: PROMETHEUS_URL
+              value: {{ .Values.prometheus.url | quote }}
+            - name: LOKI_URL
+              value: {{ .Values.loki.url | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.metricsPort | quote }}
+            - name: TRIAGE_ALLOWED_NAMESPACES
+              value: {{ .Values.executor.targetNamespace | quote }}
+            - name: LLM_MODEL
+              value: {{ include "triage-agent.modelForTier" . | quote }}
+            {{- if .Values.otelExporterOtlpEndpoint }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.otelExporterOtlpEndpoint | quote }}
+            {{- end }}
