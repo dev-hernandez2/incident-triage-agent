@@ -1,0 +1,32 @@
+namespace: triage
+
+executor:
+  targetNamespace: boutique
+
+models:
+  default: claude-sonnet-5-5
+  cheap: claude-haiku-5-5
+  tier: cheap
+
+budget:
+  monthlyUsd: 50
+
+image:
+  repository: triage
+  tag: latest
+  pullPolicy: IfNotPresent
+
+existingSecretName: ""
+secrets: {}
+
+kafka:
+  bootstrapServers: kafka.triage.svc.cluster.local:9092
+
+prometheus:
+  url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+
+loki:
+  url: http://loki.monitoring.svc.cluster.local:3100
+
+metricsPort: 9100
+otelExporterOtlpEndpoint: ""

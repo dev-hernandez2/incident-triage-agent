@@ -1,0 +1,14 @@
+# Mutating identity for services/executor, scoped as tightly as the job
+# requires: only get/list/patch on deployments, only in the executor's
+# target namespace. A namespaced Role (not ClusterRole) because the
+# agent's ClusterRole already covers cluster-wide read access and this
+# must not grant that by accident.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-executor-deployments
+  namespace: {{ .Values.executor.targetNamespace }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch"]
