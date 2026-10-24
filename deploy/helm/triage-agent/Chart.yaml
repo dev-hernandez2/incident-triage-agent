@@ -1,0 +1,6 @@
+apiVersion: v2
+name: triage-agent
+description: AI agent that investigates Kubernetes alerts and posts root-cause summaries for human-approved remediation.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

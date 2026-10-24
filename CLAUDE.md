@@ -51,11 +51,13 @@ a human approves or rejects it via Discord buttons or a web dashboard before
 - The agent (`services/agent`) is **read-only**. It may only call
   observability/inspection tools (e.g. `kubectl get`, `kubectl logs`, metrics
   queries). It must never have access to any mutating tool. Its RBAC
-  ServiceAccount (`deploy/k8s/rbac-triage-agent.yaml`) is a cluster-wide
-  `ClusterRole` granting only `get`/`list`/`watch`.
+  ServiceAccount (`deploy/helm/triage-agent/templates/clusterrole-agent.yaml`,
+  `clusterrolebinding-agent.yaml`, `serviceaccount-agent.yaml`) is a
+  cluster-wide `ClusterRole` granting only `get`/`list`/`watch`.
 - Only `services/executor` may change cluster state, and only after an
   `actions` row has been approved via the Discord bot or the dashboard.
-  Its RBAC ServiceAccount (`deploy/k8s/rbac-triage-executor.yaml`) is a
+  Its RBAC ServiceAccount (`deploy/helm/triage-agent/templates/role-executor.yaml`,
+  `rolebinding-executor.yaml`, `serviceaccount-executor.yaml`) is a
   separate, narrower identity: a namespaced `Role` in the `boutique`
   namespace only, granting `get`/`list`/`patch` on `deployments` — nothing
   else, and no access outside that namespace.
@@ -138,9 +140,13 @@ chaos/               Typer CLI (`chaos`): injects/reverts fault scenarios
 eval/                Offline eval harness for agent accuracy, plus the
                      "0 unsafe actions" safety check against the live
                      actions/audit_log tables
-deploy/k8s/          Raw k8s manifests (kind-friendly), including the
-                     agent's and executor's separate RBAC manifests
-deploy/helm/         Helm charts
+deploy/k8s/          kind-cluster/GitOps bootstrap manifests only
+                     (kind-config.yaml, gitea-values.yaml,
+                     argocd-boutique-app.yaml); the triage-agent app
+                     services' RBAC, NetworkPolicies, and Deployments
+                     live in deploy/helm/triage-agent/ instead
+deploy/helm/         Helm chart (triage-agent/) deploying all five app
+                     services plus their RBAC and NetworkPolicies
 docs/adr/            Architecture decision records
 docs/superpowers/    Design specs and implementation plans for larger
                      features (brainstorming/writing-plans skill output)

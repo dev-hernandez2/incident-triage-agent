@@ -8,12 +8,12 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: triage-executor
-  namespace: triage
+  name: {{ .Release.Name }}-executor
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
   podSelector:
     matchLabels:
-      app: triage-executor
+      app: {{ .Release.Name }}-executor
   policyTypes:
     - Ingress
     - Egress

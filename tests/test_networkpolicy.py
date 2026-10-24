@@ -1,22 +1,59 @@
-from pathlib import Path
+"""Tests for the triage-agent Helm chart's NetworkPolicy templates
+(rendered via `helm template`).
 
+The raw k8s manifests these tests used to read directly were deleted when
+the triage-agent app services migrated to the Helm chart at
+deploy/helm/triage-agent/ (see deploy/k8s/README.md); NetworkPolicies now
+live there instead.
+"""
+
+import shutil
+import subprocess
+from pathlib import Path
+from typing import Any
+
+import pytest
 import yaml
 
-_K8S_DIR = Path(__file__).resolve().parents[1] / "deploy" / "k8s"
+_CHART_DIR = Path(__file__).resolve().parents[1] / "deploy" / "helm" / "triage-agent"
+
+pytestmark = pytest.mark.skipif(shutil.which("helm") is None, reason="helm not installed")
+
+
+def _render_raw() -> str:
+    result = subprocess.run(
+        [
+            "helm",
+            "template",
+            "test-release",
+            str(_CHART_DIR),
+            "--set",
+            "secrets.CHANGE_ME=CHANGE_ME",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    return result.stdout
+
+
+def _render(kind: str, name: str) -> dict[str, Any]:
+    docs = [doc for doc in yaml.safe_load_all(_render_raw()) if doc]
+    return next(doc for doc in docs if doc["kind"] == kind and doc["metadata"]["name"] == name)
 
 
 def test_agent_networkpolicy_default_denies_and_selects_agent_pods() -> None:
-    manifest = yaml.safe_load((_K8S_DIR / "networkpolicy-agent.yaml").read_text())
-    assert manifest["kind"] == "NetworkPolicy"
+    manifest = _render("NetworkPolicy", "test-release-agent")
     spec = manifest["spec"]
-    assert spec["podSelector"]["matchLabels"]["app"] == "triage-agent"
+    assert spec["podSelector"]["matchLabels"]["app"] == "test-release-agent"
     assert "Egress" in spec["policyTypes"]
     assert "Ingress" in spec["policyTypes"]
     assert spec["ingress"] == []
 
 
 def test_agent_networkpolicy_allows_only_documented_egress_destinations() -> None:
-    manifest = yaml.safe_load((_K8S_DIR / "networkpolicy-agent.yaml").read_text())
+    manifest = _render("NetworkPolicy", "test-release-agent")
     egress_rules = manifest["spec"]["egress"]
     all_ports = {p["port"] for rule in egress_rules for p in rule.get("ports", [])}
     assert 9090 in all_ports  # Prometheus
@@ -28,18 +65,18 @@ def test_agent_networkpolicy_allows_only_documented_egress_destinations() -> Non
 
 
 def test_agent_networkpolicy_documents_llm_egress_limitation() -> None:
-    raw = (_K8S_DIR / "networkpolicy-agent.yaml").read_text()
+    raw = _render_raw()
     assert "0.0.0.0/0" in raw
     assert "hostname" in raw.lower() or "FQDN" in raw
 
 
 def test_executor_networkpolicy_selects_executor_pods_only() -> None:
-    manifest = yaml.safe_load((_K8S_DIR / "networkpolicy-executor.yaml").read_text())
-    assert manifest["spec"]["podSelector"]["matchLabels"]["app"] == "triage-executor"
+    manifest = _render("NetworkPolicy", "test-release-executor")
+    assert manifest["spec"]["podSelector"]["matchLabels"]["app"] == "test-release-executor"
 
 
 def test_executor_networkpolicy_allows_kafka_postgres_and_discord_egress() -> None:
-    manifest = yaml.safe_load((_K8S_DIR / "networkpolicy-executor.yaml").read_text())
+    manifest = _render("NetworkPolicy", "test-release-executor")
     egress_rules = manifest["spec"]["egress"]
     all_ports = {p["port"] for rule in egress_rules for p in rule.get("ports", [])}
     assert 9092 in all_ports  # Kafka
@@ -57,5 +94,5 @@ def test_executor_networkpolicy_allows_kafka_postgres_and_discord_egress() -> No
 
 
 def test_executor_networkpolicy_header_comment_mentions_discord() -> None:
-    raw = (_K8S_DIR / "networkpolicy-executor.yaml").read_text()
+    raw = _render_raw()
     assert "Discord" in raw or "discord" in raw

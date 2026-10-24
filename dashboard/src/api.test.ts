@@ -5,14 +5,16 @@ describe("fetchIncidents", () => {
   it("returns the parsed incident list", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => [{ id: "1", alertname: "PodCrashLooping", status: "received" }],
+      json: async () => [
+        { id: "1", alertname: "PodCrashLooping", status: "received", created_at: "2026-01-01T00:00:00Z" },
+      ],
     });
     vi.stubGlobal("fetch", mockFetch);
 
     const incidents = await fetchIncidents("http://api.test");
 
     expect(incidents).toEqual([
-      { id: "1", alertname: "PodCrashLooping", status: "received" },
+      { id: "1", alertname: "PodCrashLooping", status: "received", created_at: "2026-01-01T00:00:00Z" },
     ]);
     expect(mockFetch).toHaveBeenCalledWith("http://api.test/incidents", {
       credentials: "include",
@@ -26,6 +28,7 @@ describe("fetchIncident", () => {
       id: "1",
       alertname: "PodCrashLooping",
       status: "received",
+      created_at: "2026-01-01T00:00:00Z",
       findings: [],
       timeline: [],
     };

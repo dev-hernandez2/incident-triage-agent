@@ -1,0 +1,6 @@
+image:
+  repository: triage
+  tag: local
+executor:
+  targetNamespace: boutique
+existingSecretName: triage-secrets

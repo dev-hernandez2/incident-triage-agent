@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-executor
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-executor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-executor
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-executor
+    spec:
+      serviceAccountName: {{ .Release.Name }}-executor
+      containers:
+        - name: executor
+          image: "{{ .Values.image.repository }}-executor:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - secretRef:
+                name: {{ include "triage-agent.secretName" . }}
+          env:
+            - name: EXECUTOR_NAMESPACE
+              value: {{ .Values.executor.targetNamespace | quote }}

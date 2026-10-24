@@ -1,0 +1,16 @@
+# Exposes the agent Deployment's metrics port as a Service, so the
+# ServiceMonitor has something to select and scrape.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-agent
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-agent
+spec:
+  selector:
+    app: {{ .Release.Name }}-agent
+  ports:
+    - name: metrics
+      port: {{ .Values.metricsPort }}
+      targetPort: {{ .Values.metricsPort }}

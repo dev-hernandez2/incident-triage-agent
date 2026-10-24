@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-executor-deployments
+  namespace: {{ .Values.executor.targetNamespace }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-executor
+    namespace: {{ .Values.namespace | default .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ .Release.Name }}-executor-deployments
+  apiGroup: rbac.authorization.k8s.io
