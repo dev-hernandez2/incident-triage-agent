@@ -1,4 +1,4 @@
-namespace: triage
+namespace: ""
 
 executor:
   targetNamespace: boutique

@@ -5,7 +5,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: {{ .Release.Name }}-agent
-    namespace: {{ .Values.namespace }}
+    namespace: {{ .Values.namespace | default .Release.Namespace }}
 roleRef:
   kind: ClusterRole
   name: {{ .Release.Name }}-agent-read-only

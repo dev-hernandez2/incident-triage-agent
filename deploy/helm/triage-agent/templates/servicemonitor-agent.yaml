@@ -11,7 +11,7 @@ spec:
       app: {{ .Release.Name }}-agent
   namespaceSelector:
     matchNames:
-      - {{ .Values.namespace }}
+      - {{ .Values.namespace | default .Release.Namespace }}
   endpoints:
     - port: metrics
       path: /metrics

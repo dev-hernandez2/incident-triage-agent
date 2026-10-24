@@ -9,7 +9,10 @@ dashboard) plus their RBAC and NetworkPolicies.
   `Makefile`'s `up` target, or point `values.yaml`'s `kafka.bootstrapServers`
   at your own).
 - Built and pushed images for all five services (see `deploy/*/Dockerfile`
-  at the repo root) — this chart does not build images itself.
+  at the repo root) — this chart does not build images itself. These
+  Dockerfiles exist but have not yet been exercised by a real build/CI
+  pipeline in this project, so whoever runs them first is the first to
+  actually build and run these images end-to-end.
 - A Secret with the required env vars (`ANTHROPIC_API_KEY`,
   `DISCORD_BOT_TOKEN`, `DATABASE_URL`, etc. — see `.env.example`), either
   passed via `secrets:` in `values.yaml` (demo/dev only) or referenced via

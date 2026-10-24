@@ -9,7 +9,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ .Release.Name }}-executor
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
   podSelector:
     matchLabels:

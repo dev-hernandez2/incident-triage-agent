@@ -6,7 +6,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: {{ .Release.Name }}-executor
-    namespace: {{ .Values.namespace }}
+    namespace: {{ .Values.namespace | default .Release.Namespace }}
 roleRef:
   kind: Role
   name: {{ .Release.Name }}-executor-deployments
