@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# NOTE: `make up` also Helm-installs the same five services (webhook, agent,
+# bot, executor, dashboard) into the cluster for an always-on deployment.
+# This script starts its own local copies via `uv run` against
+# port-forwarded Kafka/Postgres for a quick scripted walkthrough. Running
+# both at once means two consumers in the same Kafka consumer group and two
+# executors polling `actions` — harmless (the approval gate and RBAC are
+# per-process and unaffected) but wasteful/confusing, so avoid running both
+# at the same time.
+
 CLUSTER_NAME="triage"
 DEMO_SERVICE="${DEMO_SERVICE:-cartservice}"
 LOG_DIR="/tmp/triage-demo-logs"
@@ -28,6 +37,18 @@ if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
   exit 1
 fi
 kubectl config use-context "kind-$CLUSTER_NAME" >/dev/null
+
+# Load .env into this script's environment so ANTHROPIC_API_KEY,
+# DISCORD_BOT_TOKEN, DISCORD_CHANNEL_ID, and (for the bad_deploy scenario
+# below) GITEA_REPO_URL/ARGOCD_URL/ARGOCD_TOKEN reach the services started
+# below. The services themselves only read os.environ — nothing sources
+# .env for them.
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
 
 mkdir -p "$LOG_DIR"
 

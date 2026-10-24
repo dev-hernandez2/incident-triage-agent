@@ -24,16 +24,34 @@ flowchart LR
 
 ## Quickstart
 
+Before running `make demo`, create a `.env` (copy `.env.example`) with at
+least `ANTHROPIC_API_KEY`, `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID` set.
+`scripts/demo.sh` sources `.env` itself (`set -a; . ./.env; set +a`), so it
+just needs to exist in the repo root before you run `make demo` — you don't
+need to `export` it yourself.
+
+`make demo` also hardcodes the `bad_deploy` chaos scenario, which
+additionally needs `GITEA_REPO_URL`, `ARGOCD_URL`, and `ARGOCD_TOKEN` in
+that same `.env`. Minting `ARGOCD_TOKEN` requires a one-time manual step
+after `make up` (`argocd login` + `argocd account generate-token`) — see
+[`chaos/README.md`](./chaos/README.md) for the exact commands before your
+first `make demo` run.
+
 ```bash
 make up      # kind cluster + Online Boutique + monitoring stack (~5-10 min)
 make demo    # inject a fault, watch the agent/bot/dashboard flow, auto-revert
 make eval    # run the offline accuracy eval harness
 ```
 
-`make demo` requires a `.env` (copy `.env.example`) with at least
-`ANTHROPIC_API_KEY`, `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID` set — it
-prints the Discord channel and dashboard URL to watch, waits ~5 minutes
-for the full investigation/approval flow, then reverts the fault.
+`make demo` prints the Discord channel and dashboard URL to watch, waits
+~5 minutes for the full investigation/approval flow, then reverts the fault.
+
+Note: `make up` also deploys the same five services into the cluster via
+Helm for an always-on deployment, while `make demo` runs its own local
+copies for this scripted walkthrough. Running both at once is harmless but
+wasteful/confusing — it just means two consumers in the same Kafka group
+and two executors polling `actions`; the approval gate and RBAC are
+per-process and unaffected either way.
 
 ## Eval results
 
