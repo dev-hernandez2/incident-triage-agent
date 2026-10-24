@@ -104,8 +104,8 @@ up: ## Create kind cluster, deploy Online Boutique + monitoring stack
 down: ## Tear down the kind cluster
 	kind delete cluster --name $(CLUSTER_NAME)
 
-demo: ## Trigger a chaos scenario end-to-end and show the Discord flow
-	@echo "TODO: run chaos/ scenario against Online Boutique"
+demo: ## Inject bad_deploy, watch the agent/bot/dashboard flow, then revert
+	@bash scripts/demo.sh
 
 eval: ## Run the offline agent accuracy eval harness
 	uv run --package triage-eval eval $(if $(REPLAY),--replay,) $(EVAL_ARGS)
