@@ -63,7 +63,10 @@ def incident_fields_from_alert(
         labels: Alert labels dict
         annotations: Alert annotations dict
         run_id: An extra token the caller mixes into the fingerprint to keep
-            it unique across independent eval runs (e.g. "{scenario}-r{repeat}").
+            it unique across independent eval runs (e.g.
+            "{scenario}-{model}-r{repeat}" — the model must be included, since
+            comparing multiple models in one eval invocation reuses the same
+            scenario+repeat and would otherwise collide on this fingerprint).
             A real Alertmanager fingerprint is deliberately stable so the same
             real-world alert firing twice dedupes against incidents' unique-
             while-received index; each eval run instead represents an

@@ -35,3 +35,14 @@ even if it does not exist yet at install time — Kubernetes allows RBAC
 objects to reference a namespace that is created later; the executor
 only needs the namespace to exist by the time it actually tries to patch
 a Deployment in it.
+
+## Note on `agent.allowedNamespaces`
+
+The agent's ServiceAccount has a cluster-wide `ClusterRole`
+(`get`/`list`/`watch` only) so it can investigate any namespace a root
+cause might live in, not just `executor.targetNamespace`. This value sets
+`TRIAGE_ALLOWED_NAMESPACES`, a second, app-level allow-list enforced in
+`K8sReadOnlyClient` — it defaults to `"*"` (every namespace); set it to a
+comma-separated list (e.g. `boutique,monitoring`) to narrow the agent's
+reach below what the `ClusterRole` permits, without changing RBAC or
+redeploying the chart's templates.

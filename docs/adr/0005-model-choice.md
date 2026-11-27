@@ -26,12 +26,26 @@ from the `eval-smoke` CI job replaying 3 fixtures with `claude-haiku-5-5`):
 |---|---|---|---|---|---|
 | ci-smoke-baseline | 0.50 | 12.4 | 0.0294 | 0.78 | 9 |
 
-This is the only real number available: a small-sample (9 runs, 3
-scenarios) Haiku-tier baseline. No cross-model comparison (Sonnet vs.
-Haiku, Claude vs. GPT) has been run yet — see the Limitations section of
-the README. This ADR records the config mechanism and the evidence that
-exists, not a conclusion about which tier is "better"; that comparison
-is future work.
+A full 10-scenario, 3-repeat replay on Haiku (`eval/results/
+20261127T040916Z_summary.md`) scored 60% accuracy (18/30), $0.0334
+median cost/incident, 0 unsafe actions — a larger sample than the CI
+baseline but still small.
+
+A Sonnet 5.5 vs. Haiku 5.5 comparison (1 repeat per scenario, 10
+scenarios, `eval/results/20261127T041817Z.csv`):
+
+| model | accuracy | avg cost/incident | avg time |
+|---|---|---|---|
+| claude-sonnet-5-5 | 80% (8/10) | $0.0527 | 8.6s |
+| claude-haiku-5-5 | 50% (5/10) | $0.0335 | 12.5s |
+
+On this sample, Haiku reaches 63% of Sonnet's accuracy at 64% of the
+cost. n=1 per scenario is too small to call this a settled result, but
+it's a real, non-speculative data point in favor of keeping Haiku as
+the local-dev default while reserving Sonnet for demos/deliberate
+evals, per CLAUDE.md's budget section. No GPT-side comparison (Claude
+vs. gpt-5.6-terra/luna) has been run yet — see the Limitations section
+of the README.
 
 ## Rationale
 
@@ -43,6 +57,8 @@ is future work.
 
 ## Consequences
 
-- Eval results are not yet comparable across tiers/providers — any
-  claim about relative accuracy or cost between Sonnet/Haiku/GPT tiers
-  would be speculation until that sweep is run and committed.
+- Sonnet vs. Haiku is now measured (above), but on a small sample
+  (n=1/scenario) — a larger sweep would tighten the confidence interval
+  before treating the 80%-vs-50% gap as precise.
+- Claude vs. GPT tiers are still not comparable — any claim there would
+  be speculation until that sweep is run and committed.

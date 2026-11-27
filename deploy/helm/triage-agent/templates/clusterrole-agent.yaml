@@ -8,7 +8,7 @@ metadata:
   name: {{ .Release.Name }}-agent-read-only
 rules:
   - apiGroups: [""]
-    resources: ["pods", "events", "services", "nodes"]
+    resources: ["pods", "events", "services", "nodes", "namespaces"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["apps"]
     resources: ["deployments", "replicasets"]

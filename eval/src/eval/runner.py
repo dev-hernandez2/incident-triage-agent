@@ -132,7 +132,7 @@ def _run_once(
     tools = build_registry(_default_settings())
     tools_by_name = {t.name: t for t in tools}
 
-    run_id = f"{scenario}-r{repeat}"
+    run_id = f"{scenario}-{model}-r{repeat}"
     if config.replay:
         tools = replaying_tools(tools, fixture_path)
         incident = _build_incident(scenario, None, service, run_id)

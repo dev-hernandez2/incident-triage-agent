@@ -28,6 +28,30 @@ jobs:
       - name: Test (pytest)
         run: uv run pytest
 
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc)
+        run: npx tsc -b
+
+      - name: Test (vitest)
+        run: npx vitest run
+
   eval-smoke:
     runs-on: ubuntu-latest
     services:
@@ -71,3 +95,18 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           EVAL_BUDGET_USD: "2"
           DATABASE_URL: postgresql://triage:triage@localhost:5432/triage
+
+      - name: Show run errors on failure
+        if: failure()
+        run: |
+          latest=$(ls -t eval/results/*.csv | head -1)
+          echo "=== $latest ==="
+          cat "$latest"
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-smoke-results
+          path: eval/results/*.csv
+          retention-days: 14

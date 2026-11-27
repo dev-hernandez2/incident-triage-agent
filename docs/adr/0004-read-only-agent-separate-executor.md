@@ -18,6 +18,15 @@ separate Kubernetes ServiceAccounts and RBAC identities:
 
 - `services/agent`: a cluster-wide `ClusterRole` granting only
   `get`/`list`/`watch` — no mutating verb, anywhere, on any resource.
+  Cluster-wide (not namespaced) is deliberate: a root cause can live in
+  a namespace other than the one the alert fired in (a shared dependency,
+  an ingress controller, a misconfigured NetworkPolicy elsewhere), so the
+  agent's `list_namespaces` tool lets it discover and inspect any
+  namespace, not just the one named in the incoming alert. The app-level
+  `TRIAGE_ALLOWED_NAMESPACES` allow-list in `K8sReadOnlyClient` (default
+  `*`, all namespaces) is a second, independent control that can narrow
+  this below what RBAC permits without a redeploy — RBAC is the ceiling,
+  this env var is the adjustable floor.
 - `services/executor`: a namespaced `Role` (scoped to the executor's
   target namespace, e.g. `boutique`) granting only `get`/`list`/`patch`
   on `deployments` — nothing else, no access outside that namespace,
