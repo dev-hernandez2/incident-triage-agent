@@ -3,7 +3,12 @@
 from agent.config import Settings
 from agent.tools.base import ToolSpec
 from agent.tools.k8s_client import K8sReadOnlyClient
-from agent.tools.k8s_inspect import make_describe_resource, make_get_events, make_list_pods
+from agent.tools.k8s_inspect import (
+    make_describe_resource,
+    make_get_events,
+    make_list_namespaces,
+    make_list_pods,
+)
 from agent.tools.logs import make_search_logs
 from agent.tools.metrics import make_query_metrics
 
@@ -16,6 +21,7 @@ def build_registry(settings: Settings) -> list[ToolSpec]:
         make_describe_resource(k8s_client),
         make_get_events(k8s_client),
         make_list_pods(k8s_client),
+        make_list_namespaces(k8s_client),
     ]
 
 

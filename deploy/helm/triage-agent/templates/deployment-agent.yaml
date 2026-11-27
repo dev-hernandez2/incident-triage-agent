@@ -39,7 +39,7 @@ spec:
             - name: METRICS_PORT
               value: {{ .Values.metricsPort | quote }}
             - name: TRIAGE_ALLOWED_NAMESPACES
-              value: {{ .Values.executor.targetNamespace | quote }}
+              value: {{ .Values.agent.allowedNamespaces | quote }}
             - name: LLM_MODEL
               value: {{ include "triage-agent.modelForTier" . | quote }}
             {{- if .Values.otelExporterOtlpEndpoint }}

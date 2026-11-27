@@ -25,6 +25,10 @@ class ListPodsInput(BaseModel):
     selector: str | None = Field(default=None, description="Kubernetes label selector")
 
 
+class ListNamespacesInput(BaseModel):
+    pass
+
+
 def make_describe_resource(client: K8sReadOnlyClient) -> ToolSpec:
     def handler(args: BaseModel) -> str:
         assert isinstance(args, DescribeResourceInput)
@@ -73,6 +77,23 @@ def make_list_pods(client: K8sReadOnlyClient) -> ToolSpec:
         name="list_pods",
         description="List pods in a namespace: name, phase, ready, restarts, last state.",
         input_model=ListPodsInput,
+        timeout_s=10.0,
+        handler=handler,
+    )
+
+
+def make_list_namespaces(client: K8sReadOnlyClient) -> ToolSpec:
+    def handler(args: BaseModel) -> str:
+        assert isinstance(args, ListNamespacesInput)
+        return json.dumps(client.list_namespaces())
+
+    return ToolSpec(
+        name="list_namespaces",
+        description=(
+            "List Kubernetes namespaces visible to the agent, to discover other "
+            "apps/microservices beyond the incident's own namespace."
+        ),
+        input_model=ListNamespacesInput,
         timeout_s=10.0,
         handler=handler,
     )

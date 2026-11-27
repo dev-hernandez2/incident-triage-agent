@@ -1,5 +1,10 @@
 namespace: ""
 
+agent:
+  # "*" means every namespace, matching the agent's cluster-wide ClusterRole
+  # (get/list/watch everywhere). Set to a comma-separated list to restrict.
+  allowedNamespaces: "*"
+
 executor:
   targetNamespace: boutique
 

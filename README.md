@@ -77,7 +77,12 @@ run yet** — see Limitations below and
 
 - `services/agent` is read-only: its ServiceAccount's `ClusterRole`
   grants only `get`/`list`/`watch`, cluster-wide, no mutating verb
-  anywhere.
+  anywhere — it can investigate any namespace/microservice on the
+  cluster, not just the Online Boutique demo namespace, and can
+  discover other namespaces via its `list_namespaces` tool.
+  `TRIAGE_ALLOWED_NAMESPACES` (default `*`, all namespaces) is a
+  second, app-level allow-list that can narrow this further without
+  touching RBAC.
 - `services/executor` is the only service that can mutate the cluster,
   and only after a human approves an `actions` row via Discord or the
   dashboard — its own ServiceAccount is a separate, narrower namespaced

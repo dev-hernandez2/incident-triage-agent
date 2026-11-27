@@ -15,7 +15,7 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    namespaces = os.environ.get("TRIAGE_ALLOWED_NAMESPACES", "boutique")
+    namespaces = os.environ.get("TRIAGE_ALLOWED_NAMESPACES", "*")
     return Settings(
         prometheus_url=os.environ.get("PROMETHEUS_URL", "http://localhost:9090"),
         loki_url=os.environ.get("LOKI_URL", "http://localhost:3100"),

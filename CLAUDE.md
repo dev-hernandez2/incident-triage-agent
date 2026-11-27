@@ -53,7 +53,18 @@ a human approves or rejects it via Discord buttons or a web dashboard before
   queries). It must never have access to any mutating tool. Its RBAC
   ServiceAccount (`deploy/helm/triage-agent/templates/clusterrole-agent.yaml`,
   `clusterrolebinding-agent.yaml`, `serviceaccount-agent.yaml`) is a
-  cluster-wide `ClusterRole` granting only `get`/`list`/`watch`.
+  cluster-wide `ClusterRole` granting only `get`/`list`/`watch` —
+  deliberately cluster-wide, not namespaced, so it can investigate any
+  microservice/namespace an incident touches, not just the Online
+  Boutique demo namespace. Its `list_namespaces` tool
+  (`services/agent/src/agent/tools/k8s_inspect.py`) lets it discover
+  other namespaces beyond the one named in the incoming alert. The
+  app-level `TRIAGE_ALLOWED_NAMESPACES` env var (default `*`, meaning
+  all namespaces; see `agent.allowedNamespaces` in
+  `deploy/helm/triage-agent/values.yaml`) is a second, independent
+  allow-list enforced in `K8sReadOnlyClient` — set it to a
+  comma-separated list to narrow the agent's reach below what RBAC
+  alone permits, without redeploying RBAC.
 - Only `services/executor` may change cluster state, and only after an
   `actions` row has been approved via the Discord bot or the dashboard.
   Its RBAC ServiceAccount (`deploy/helm/triage-agent/templates/role-executor.yaml`,

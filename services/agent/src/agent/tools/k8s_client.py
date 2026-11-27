@@ -3,6 +3,9 @@
 Deliberately exposes no mutating operations (no patch/delete/create/exec) —
 the agent's RBAC ClusterRole also only grants get/list/watch, but this keeps
 the agent's own code from ever attempting a write. See deploy/k8s/rbac-triage-agent.yaml.
+
+`allowed_namespaces` of frozenset({"*"}) means every namespace is allowed —
+matches the agent's cluster-wide ClusterRole (get/list/watch everywhere).
 """
 
 from typing import Any
@@ -11,6 +14,8 @@ from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 
 from agent.tools.base import ToolError
+
+ALL_NAMESPACES = "*"
 
 
 class NamespaceNotAllowedError(ToolError):
@@ -39,6 +44,8 @@ class K8sReadOnlyClient:
         self._core = client.CoreV1Api()
 
     def _check_namespace(self, namespace: str) -> None:
+        if ALL_NAMESPACES in self.allowed_namespaces:
+            return
         if namespace not in self.allowed_namespaces:
             allow_list = sorted(self.allowed_namespaces)
             raise NamespaceNotAllowedError(
@@ -76,6 +83,17 @@ class K8sReadOnlyClient:
             events.items
         )
         return items
+
+    def list_namespaces(self) -> list[str]:
+        self._ensure_configured()
+        try:
+            namespaces = self._core.list_namespace()
+        except ApiException as exc:
+            raise ToolError(f"failed to list namespaces: {exc.reason}") from exc
+        names = [ns.metadata.name for ns in namespaces.items]
+        if ALL_NAMESPACES in self.allowed_namespaces:
+            return names
+        return [name for name in names if name in self.allowed_namespaces]
 
     def list_pods(self, namespace: str, selector: str | None) -> list[dict[str, Any]]:
         self._ensure_configured()
