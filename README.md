@@ -24,6 +24,9 @@ flowchart LR
 
 ## Quickstart
 
+`make up`/`make demo` only provision a local `kind` cluster on your own
+machine — nothing here touches a remote cluster or cloud account.
+
 Before running `make demo`, create a `.env` (copy `.env.example`) with at
 least `ANTHROPIC_API_KEY`, `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID` set.
 `scripts/demo.sh` sources `.env` itself (`set -a; . ./.env; set +a`), so it
