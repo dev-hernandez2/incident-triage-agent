@@ -95,3 +95,18 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           EVAL_BUDGET_USD: "2"
           DATABASE_URL: postgresql://triage:triage@localhost:5432/triage
+
+      - name: Show run errors on failure
+        if: failure()
+        run: |
+          latest=$(ls -t eval/results/*.csv | head -1)
+          echo "=== $latest ==="
+          cat "$latest"
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-smoke-results
+          path: eval/results/*.csv
+          retention-days: 14
