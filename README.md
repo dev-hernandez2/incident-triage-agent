@@ -63,9 +63,27 @@ per-process and unaffected either way.
 | claude-haiku-5-5 (`ci-smoke-baseline`) | 50% | 12.4s | $0.0294 | 9 |
 
 This is the CI regression baseline (`eval/results/latest_summary.md`),
-replaying 3 fixtures on every PR. **No cross-model comparison has been
-run yet** — see Limitations below and
-[ADR 0005](docs/adr/0005-model-choice.md).
+replaying 3 fixtures on every PR.
+
+**Full 10-scenario replay (3 repeats each, Haiku):** 60% accuracy
+(18/30), $0.0334 median cost/incident, 12.0s median time, 0 unsafe
+actions (`eval/results/20261127T040916Z_summary.md`). Per-scenario:
+4 scenarios at 3/3 correct (`crash_loop`, `bad_deploy`, `slow_redis`,
+`failing_readiness_probe`), 3 at 0/3 (`cpu_throttle`, `expired_tls_cert`,
+`red_herring`), the rest mixed.
+
+**Sonnet 5.5 vs. Haiku 5.5 (1 repeat per scenario, 10 scenarios):**
+
+| model | accuracy | avg cost/incident | avg time |
+|---|---|---|---|
+| claude-sonnet-5-5 | 80% (8/10) | $0.0527 | 8.6s |
+| claude-haiku-5-5 | 50% (5/10) | $0.0335 | 12.5s |
+
+On this sample, Haiku reaches **63% of Sonnet's accuracy at 64% of
+the cost** — a real but modest discount, not a free lunch; see
+[ADR 0005](docs/adr/0005-model-choice.md) for the tier tradeoff this
+motivates. n=1 per scenario for the comparison, n=3 for the full
+Haiku replay above — both are small samples (see Limitations).
 
 ## Key design decisions
 
@@ -104,24 +122,24 @@ run yet** — see Limitations below and
 
 ## Cost per incident
 
-The eval baseline above puts median per-incident LLM cost at **$0.0294**
-(Haiku tier, 3-fixture smoke sample) — well inside the project's
-$50/month budget target at any realistic incident volume for a demo
-cluster. This is the only cost data available; it has not been measured
-against the default (Sonnet/gpt-5.6-terra) tier.
+Median per-incident LLM cost is **$0.0334** (Haiku tier, full 10-scenario
+replay) and **$0.0527** (Sonnet tier, 1-repeat comparison) — both well
+inside the project's $50/month budget target at any realistic incident
+volume for a demo cluster. GPT tier cost has not been measured.
 
 ## Limitations
 
-- The 50% eval accuracy baseline is from a small sample (9 runs across
-  3 scenarios) — not a statistically robust accuracy claim.
+- All eval numbers above are from small samples (30 runs for the full
+  Haiku replay, 10 per model for the Sonnet/Haiku comparison) — not a
+  statistically robust accuracy claim.
 - 7 of the eval harness's 10 scenarios (`cpu_throttle`, `slow_redis`,
   `failing_readiness_probe`, `dns_failure`, `expired_tls_cert`,
   `red_herring`, `prompt_injection`) use hand-authored synthetic
   fixtures, not live cluster recordings — treat results on those as a
   check on reasoning given a fixed evidence trail, not a live
   reproduction (see `eval/README.md`).
-- No cross-model comparison (Sonnet 5.5 vs. Haiku 5.5, Claude vs. GPT)
-  has been run yet.
+- No GPT-side comparison (Claude vs. gpt-5.6-terra/luna) has been run
+  yet.
 - The agent's NetworkPolicy allows HTTPS egress to any IP on port 443
   (Kubernetes `NetworkPolicy` can't filter by hostname without an
   FQDN-aware CNI) — a known, accepted limitation, see
