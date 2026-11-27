@@ -1,10 +1,20 @@
 # triage-agent
 
+Sonnet 5.5 finds the root cause in 8 of 10 injected incidents at about
+$0.05 each, and no fix runs without human approval.
+
 AI agent that investigates Kubernetes alerts with read-only tools and
 posts a root-cause summary to Discord for human approval before any
 remediation runs — a typed, reviewable action (rollback/restart/scale/
 manual) that a human must explicitly approve via Discord or a web
-dashboard before anything touches the cluster. Portfolio project.
+dashboard before it touches the cluster. Portfolio project.
+
+![Mockup of the triage-agent Discord bot posting a root-cause finding with Approve/Reject buttons](docs/images/discord-approval-mockup.png)
+
+*Mockup built from the real embed/button code (`services/bot/src/bot/format.py`,
+`views.py`) and real data from the `bad_deploy` eval run above — not a live
+screenshot, since this portfolio build doesn't have a persistent Discord
+server wired up.*
 
 ## Architecture
 
@@ -71,6 +81,29 @@ actions (`eval/results/20261127T040916Z_summary.md`). Per-scenario:
 4 scenarios at 3/3 correct (`crash_loop`, `bad_deploy`, `slow_redis`,
 `failing_readiness_probe`), 3 at 0/3 (`cpu_throttle`, `expired_tls_cert`,
 `red_herring`), the rest mixed.
+
+**Why those three fail every time, and what to try next:** the fixture
+traces show two different failure modes, not one. On `cpu_throttle`,
+the agent queries the exact right PromQL
+(`container_cpu_cfs_throttled_periods_total`) and gets back clear
+evidence — a 10m CPU limit, 55-95% throttling, elevated p95 latency,
+zero crash events — then still reports "unknown." It retrieves the
+right signal but doesn't conclude from it, likely because every other
+scenario it succeeds on has an unambiguous crash/restart/event to
+anchor on, and this one requires inferring a cause from degraded
+performance with a healthy-looking pod (`1/1 Ready`, 0 restarts). On
+`red_herring`, the opposite problem: there's plenty of crash signal
+(checkoutservice at 9 restarts with a `BackOff` event), but it's
+emitted alongside a second, simultaneous symptom (frontend also
+restarting), and the agent fails the causal-attribution step of
+picking the real cause over the correlated distraction.
+`expired_tls_cert` likely shares the `cpu_throttle` pattern: no crash,
+just a cert validity field a log/metrics query has to actively
+interpret. The fix isn't more tools — the agent already has what it
+needs — it's prompting it to explicitly consider "degraded but not
+crashing" and "two symptoms, one of them downstream" as named
+investigation patterns, then re-running this same replay set to see
+if that closes the gap.
 
 **Sonnet 5.5 vs. Haiku 5.5 (1 repeat per scenario, 10 scenarios):**
 
